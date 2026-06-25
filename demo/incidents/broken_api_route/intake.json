@@ -1,0 +1,9 @@
+{
+  "scenario": "broken_api_route",
+  "title": "Payments API route failing",
+  "symptoms": [
+    "POST /payments returns HTTP 500",
+    "CI test for create payment fails"
+  ],
+  "repo_path": "demo/demo_repo"
+}

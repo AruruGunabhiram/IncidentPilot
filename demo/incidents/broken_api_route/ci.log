@@ -1,0 +1,5 @@
+2026-06-25T14:00:01Z Starting CI run
+2026-06-25T14:00:04Z Running tests/test_payments.py
+2026-06-25T14:00:05Z AssertionError: expected status code 201, got 500
+2026-06-25T14:00:05Z api_key=[REDACTED_BY_FIXTURE]
+2026-06-25T14:00:06Z CI failed
