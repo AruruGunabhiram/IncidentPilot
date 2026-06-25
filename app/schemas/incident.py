@@ -1,39 +1,49 @@
+"""Incident intake schemas."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-class EvidenceItem(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
-
-    source_type: Literal["ci_log", "repo_file", "user_note", "system", "unknown"] = "unknown"
-    source: str = Field(..., min_length=1)
-    summary: str = Field(..., min_length=1)
-    content: str | None = Field(default=None, min_length=1)
-    file_path: str | None = Field(default=None, min_length=1)
-    line_start: int | None = Field(default=None, ge=1)
-    line_end: int | None = Field(default=None, ge=1)
-    redacted: bool = True
+TriggerType = Literal[
+    "github_actions_failure",
+    "api_error",
+    "manual",
+    "test_failure",
+    "unknown",
+]
 
 
 class IncidentIntake(BaseModel):
+    """Normalized representation of an incoming incident to investigate."""
+
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    scenario: str = Field(..., min_length=1, examples=["broken_api_route"])
-    title: str | None = Field(default=None, min_length=1)
-    description: str | None = Field(default=None, min_length=1)
-    severity: Literal["low", "medium", "high", "critical", "unknown"] = "unknown"
-    evidence: list[EvidenceItem] = Field(default_factory=list)
-    labels: list[str] = Field(default_factory=list)
+    incident_id: str
+    scenario: str
+    service: str
+    trigger_type: TriggerType
+    summary: str
+    repo_owner: str | None = None
+    repo_name: str | None = None
+    repo_path: str | None = None
+    signals: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class IncidentTriggerRequest(BaseModel):
+    """API request body for triggering an incident investigation."""
+
     model_config = ConfigDict(extra="forbid", strict=True)
 
     scenario: str = Field(..., examples=["broken_api_route"])
 
 
 class IncidentTriggerResponse(BaseModel):
+    """API response returned when an incident investigation is created."""
+
     model_config = ConfigDict(extra="forbid", strict=True)
 
     incident_id: str

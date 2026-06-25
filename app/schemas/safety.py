@@ -1,29 +1,29 @@
-from typing import Any, Literal
+"""Safety reviewer schema.
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+Defaults are conservative: nothing is approved, human approval is required, and
+no direct production change is assumed, until the Safety Reviewer agent proves
+otherwise from evidence.
+"""
 
-from app.schemas.findings import Confidence, _coerce_evidence_items
-from app.schemas.incident import EvidenceItem
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import Field
+
+from app.schemas.findings import ReviewedOutput
 
 
-class SafetySummary(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+class SafetyReview(ReviewedOutput):
+    """Output of the Safety Reviewer agent gating display and external writes."""
 
-    secrets_redacted: bool = True
-    github_dry_run: bool = True
-    write_actions_enabled: bool = False
-
-
-class SafetyReview(SafetySummary):
-    summary: str = Field(default="", min_length=0)
-    confidence: float = Confidence
-    evidence: list[EvidenceItem] = Field(default_factory=list)
-    needs_human_review: bool = True
-    blocked_reasons: list[str] = Field(default_factory=list)
-    decision: Literal["approved", "blocked", "needs_review"] = "needs_review"
-    write_scope: Literal["none", "local_only", "external_dry_run"] = "none"
-
-    @field_validator("evidence", mode="before")
-    @classmethod
-    def coerce_evidence(cls, value: Any) -> Any:
-        return _coerce_evidence_items(value)
+    approved_for_display: bool = False
+    approved_for_github_issue: bool = False
+    approved_for_pr: bool = False
+    risk_level: Literal["low", "medium", "high", "critical"] = "high"
+    secrets_redacted: bool = False
+    repo_paths_verified: bool = False
+    confidence_above_threshold: bool = False
+    human_approval_required: bool = True
+    no_direct_production_change: bool = True
+    required_human_action: str | None = None

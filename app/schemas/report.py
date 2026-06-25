@@ -1,37 +1,42 @@
-from typing import Any, Literal
+"""Final incident report schema assembled by the Final Report Builder."""
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Literal
+
+from pydantic import Field
 
 from app.schemas.findings import (
     CodeFinding,
-    Confidence,
-    Finding,
     FixPlan,
     LogFinding,
+    ReviewedOutput,
     RootCauseHypothesis,
-    _coerce_evidence_items,
 )
-from app.schemas.incident import EvidenceItem
 from app.schemas.safety import SafetyReview
 
 
-class IncidentReport(BaseModel):
-    model_config = ConfigDict(extra="forbid", strict=True)
+class IncidentReport(ReviewedOutput):
+    """Grounded, human-reviewable incident report."""
 
     incident_id: str
-    scenario: str
-    summary: str = Field(..., min_length=1)
-    confidence: float = Confidence
-    evidence: list[EvidenceItem] = Field(default_factory=list)
-    needs_human_review: bool = True
-    blocked_reasons: list[str] = Field(default_factory=list)
-    status: Literal["draft", "blocked", "ready_for_review", "approved"] = "draft"
-    findings: list[Finding | LogFinding | CodeFinding] = Field(default_factory=list)
-    root_cause_hypotheses: list[RootCauseHypothesis] = Field(default_factory=list)
+    title: str
+    severity: Literal["SEV1", "SEV2", "SEV3", "UNKNOWN"]
+    affected_service: str
+    status: Literal[
+        "created",
+        "investigating",
+        "awaiting_human_approval",
+        "approved",
+        "blocked",
+        "closed",
+    ]
+    primary_error: str | None = None
+    log_finding: LogFinding | None = None
+    code_finding: CodeFinding | None = None
+    root_cause: RootCauseHypothesis | None = None
     fix_plan: FixPlan | None = None
-    safety: SafetyReview = Field(default_factory=SafetyReview)
-
-    @field_validator("evidence", mode="before")
-    @classmethod
-    def coerce_evidence(cls, value: Any) -> Any:
-        return _coerce_evidence_items(value)
+    safety_review: SafetyReview | None = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

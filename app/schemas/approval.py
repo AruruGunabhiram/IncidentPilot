@@ -1,49 +1,35 @@
-from typing import Any, Literal
+"""Human approval and GitHub issue request schemas.
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+No external write action is performed without an explicit approved
+``ApprovalRequest``; ``GitHubIssueRequest`` defaults to a dry run.
+"""
 
-from app.schemas.findings import Confidence, _coerce_evidence_items
-from app.schemas.incident import EvidenceItem
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ApprovalRequest(BaseModel):
+    """Explicit human approval gate for a sensitive action."""
+
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    summary: str = Field(..., min_length=1)
-    confidence: float = Confidence
-    evidence: list[EvidenceItem] = Field(default_factory=list)
-    needs_human_review: bool = True
-    blocked_reasons: list[str] = Field(default_factory=list)
-    requested_action: Literal[
-        "generate_report",
-        "open_github_issue_dry_run",
-        "apply_local_fix_dry_run",
-    ]
-    requester: str | None = Field(default=None, min_length=1)
-    dry_run: bool = True
-
-    @field_validator("evidence", mode="before")
-    @classmethod
-    def coerce_evidence(cls, value: Any) -> Any:
-        return _coerce_evidence_items(value)
+    incident_id: str
+    action: Literal["create_github_issue", "create_pr", "post_comment"]
+    approved_by: str
+    approved: bool = False
+    note: str | None = None
 
 
 class GitHubIssueRequest(BaseModel):
+    """Payload for creating a GitHub issue, dry-run by default."""
+
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    summary: str = Field(..., min_length=1)
-    confidence: float = Confidence
-    evidence: list[EvidenceItem] = Field(default_factory=list)
-    needs_human_review: bool = True
-    blocked_reasons: list[str] = Field(default_factory=list)
-    repo_owner: str = Field(..., min_length=1)
-    repo_name: str = Field(..., min_length=1)
-    title: str = Field(..., min_length=1)
-    body: str = Field(..., min_length=1)
+    incident_id: str
+    title: str
+    body: str
     labels: list[str] = Field(default_factory=list)
     dry_run: bool = True
-
-    @field_validator("evidence", mode="before")
-    @classmethod
-    def coerce_evidence(cls, value: Any) -> Any:
-        return _coerce_evidence_items(value)

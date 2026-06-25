@@ -1,104 +1,87 @@
-from typing import Any, Literal
+"""Evidence and agent finding schemas.
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+Every agent output carries grounded ``EvidenceItem`` references plus the shared
+review fields (confidence, human-review flag, blocked reasons) so the workflow
+can enforce the project's safety rules. No business logic lives here.
+"""
 
-from app.schemas.incident import EvidenceItem
+from __future__ import annotations
+
+from typing import Annotated, Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+# Confidence is always a probability in [0, 1].
+Confidence = Annotated[float, Field(ge=0.0, le=1.0)]
+
+EvidenceSourceType = Literal[
+    "ci_log",
+    "api_response",
+    "repo_file",
+    "test_output",
+    "github_issue",
+    "unknown",
+]
 
 
-Confidence = Field(default=0.0, ge=0.0, le=1.0)
+class EvidenceItem(BaseModel):
+    """A single grounded piece of evidence returned by a deterministic tool."""
 
+    model_config = ConfigDict(extra="forbid", strict=True)
 
-def _coerce_evidence_items(value: Any) -> Any:
-    if value is None:
-        return []
-    if isinstance(value, list):
-        coerced: list[Any] = []
-        for item in value:
-            if isinstance(item, str):
-                coerced.append(
-                    {
-                        "source_type": "system",
-                        "source": "legacy",
-                        "summary": item,
-                        "redacted": True,
-                    }
-                )
-            else:
-                coerced.append(item)
-        return coerced
-    return value
+    id: str
+    source: str
+    source_type: EvidenceSourceType
+    summary: str
+    snippet: str | None = None
+    path: str | None = None
+    line_start: int | None = None
+    line_end: int | None = None
+    metadata: dict[str, str] = Field(default_factory=dict)
 
 
 class ReviewedOutput(BaseModel):
+    """Base for any agent output that must be safety-reviewable."""
+
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    summary: str = Field(default="", min_length=0)
-    confidence: float = Confidence
+    summary: str = ""
+    confidence: Confidence = 0.0
     evidence: list[EvidenceItem] = Field(default_factory=list)
     needs_human_review: bool = True
     blocked_reasons: list[str] = Field(default_factory=list)
 
 
 class LogFinding(ReviewedOutput):
-    finding_type: Literal["log"] = "log"
-    severity: Literal["info", "low", "medium", "high", "critical", "unknown"] = "unknown"
-    title: str | None = Field(default=None, min_length=1)
-    log_source: str | None = Field(default=None, min_length=1)
-    matched_text: str | None = Field(default=None, min_length=1)
-    recommendation: str | None = Field(default=None, min_length=1)
+    """Output of the Log Investigator agent."""
 
-    @field_validator("evidence", mode="before")
-    @classmethod
-    def coerce_evidence(cls, value: Any) -> Any:
-        return _coerce_evidence_items(value)
-
-    @model_validator(mode="before")
-    @classmethod
-    def fill_summary_from_legacy_title(cls, value: Any) -> Any:
-        if isinstance(value, dict) and not value.get("summary") and value.get("title"):
-            value = {**value, "summary": value["title"]}
-        return value
+    primary_error: str | None = None
+    failing_test: str | None = None
+    stack_trace_summary: str | None = None
+    redactions_applied: int = Field(default=0, ge=0)
 
 
 class CodeFinding(ReviewedOutput):
-    finding_type: Literal["code"] = "code"
-    severity: Literal["info", "low", "medium", "high", "critical", "unknown"] = "unknown"
-    title: str | None = Field(default=None, min_length=1)
-    file_path: str = Field(..., min_length=1)
-    line_start: int | None = Field(default=None, ge=1)
-    line_end: int | None = Field(default=None, ge=1)
-    symbol: str | None = Field(default=None, min_length=1)
-    recommendation: str | None = Field(default=None, min_length=1)
+    """Output of the Code Context agent."""
 
-    @field_validator("evidence", mode="before")
-    @classmethod
-    def coerce_evidence(cls, value: Any) -> Any:
-        return _coerce_evidence_items(value)
+    matched_files: list[str] = Field(default_factory=list)
+    suspected_symbols: list[str] = Field(default_factory=list)
+    missing_files: list[str] = Field(default_factory=list)
 
 
 class RootCauseHypothesis(ReviewedOutput):
-    hypothesis_type: Literal["root_cause"] = "root_cause"
-    likelihood: Literal["low", "medium", "high", "unknown"] = "unknown"
-    affected_components: list[str] = Field(default_factory=list)
+    """A single grounded root-cause hypothesis."""
 
-    @field_validator("evidence", mode="before")
-    @classmethod
-    def coerce_evidence(cls, value: Any) -> Any:
-        return _coerce_evidence_items(value)
+    category: str
+    supporting_evidence_ids: list[str] = Field(default_factory=list)
+    alternatives: list[str] = Field(default_factory=list)
 
 
 class FixPlan(ReviewedOutput):
-    plan_type: Literal["fix_plan"] = "fix_plan"
-    risk_level: Literal["low", "medium", "high", "unknown"] = "unknown"
-    proposed_steps: list[str] = Field(default_factory=list)
-    requires_approval: bool = True
-    dry_run_only: bool = True
+    """Output of the Fix Planner agent."""
 
-    @field_validator("evidence", mode="before")
-    @classmethod
-    def coerce_evidence(cls, value: Any) -> Any:
-        return _coerce_evidence_items(value)
-
-
-class Finding(LogFinding):
-    """Compatibility alias for existing placeholder report code."""
+    patch_strategy: str
+    steps: list[str] = Field(default_factory=list)
+    regression_tests: list[str] = Field(default_factory=list)
+    rollback_plan: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)

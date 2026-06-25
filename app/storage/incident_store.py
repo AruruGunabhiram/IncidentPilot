@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from app.schemas.findings import Finding
+from app.schemas.findings import EvidenceItem, LogFinding
 from app.schemas.report import IncidentReport
-from app.schemas.safety import SafetySummary
+from app.schemas.safety import SafetyReview
 
 _REPORTS: dict[str, IncidentReport] = {}
 
@@ -10,17 +10,24 @@ _REPORTS: dict[str, IncidentReport] = {}
 def create_placeholder_incident(incident_id: str, scenario: str) -> IncidentReport:
     report = IncidentReport(
         incident_id=incident_id,
-        scenario=scenario,
+        title=f"Investigation pending: {scenario}",
+        severity="UNKNOWN",
+        affected_service=scenario,
+        status="created",
         summary="Placeholder investigation report. AI analysis is not implemented yet.",
-        findings=[
-            Finding(
-                title="Investigation pending",
-                severity="info",
-                evidence=["Local demo fixtures are available for deterministic analysis."],
-                recommendation="Run local tools before enabling agent orchestration.",
-            )
-        ],
-        safety=SafetySummary(),
+        needs_human_review=True,
+        log_finding=LogFinding(
+            summary="Investigation pending.",
+            evidence=[
+                EvidenceItem(
+                    id="ev_placeholder_1",
+                    source="demo_fixtures",
+                    source_type="unknown",
+                    summary="Local demo fixtures are available for deterministic analysis.",
+                )
+            ],
+        ),
+        safety_review=SafetyReview(),
     )
     _REPORTS[incident_id] = report
     return report
