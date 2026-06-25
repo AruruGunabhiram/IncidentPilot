@@ -1,5 +1,8 @@
 .venv/
+venv/
 .env
+.env.*
+!.env.example
 
 __pycache__/
 *.py[cod]
@@ -11,10 +14,17 @@ __pycache__/
 htmlcov/
 
 reports/
+reports/tmp/
 app/storage/reports/*
 !app/storage/reports/.gitkeep
+*.sqlite
+*.db
 
 .DS_Store
 *.log
-!.env.example
 !demo/incidents/**/*.log
+
+# Generated local artifacts
+graphify-out/
+tests/graphify-out/
+docs/generated/
