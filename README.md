@@ -86,6 +86,18 @@ make test
 make clean
 ```
 
+## Architecture Graph
+
+This repository includes Graphify-generated architecture artifacts:
+
+- `graphify-out/GRAPH_REPORT.md`
+- `graphify-out/graph.html`
+- `graphify-out/graph.json`
+
+Graphify was used as a development-time codebase mapping tool to inspect module boundaries, identify central modules, and reduce AI coding context waste during development.
+
+Graphify is not part of the runtime incident investigation pipeline. IncidentPilot performs runtime evidence extraction through its own deterministic tools: CI log parser, repo search, path guard, redactor, structured report builder, safety reviewer, and approval gate.
+
 ## Later Work
 
 - ADK multi-agent orchestration
