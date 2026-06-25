@@ -29,6 +29,8 @@ class IncidentIntake(BaseModel):
     repo_owner: str | None = None
     repo_name: str | None = None
     repo_path: str | None = None
+    endpoint: str | None = None
+    repo_mode: Literal["local", "github"] = "local"
     signals: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
