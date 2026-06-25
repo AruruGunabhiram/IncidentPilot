@@ -58,8 +58,8 @@
       "summary": "POST /payments returned HTTP 500.",
       "snippet": "{\"status_code\": 500, \"body\": {\"detail\": \"Internal Server Error\"}}",
       "path": "demo/incidents/broken_api_route/api_response.json",
-      "line_start": null,
-      "line_end": null,
+      "line_start": 8,
+      "line_end": 15,
       "metadata": {}
     }
   ],
