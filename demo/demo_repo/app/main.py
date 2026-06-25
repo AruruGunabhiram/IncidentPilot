@@ -1,20 +1,21 @@
-"""Minimal demo app used as a fixture target for repo search.
+"""Demo FastAPI payments service (IncidentPilot demo_repo fixture).
 
-This is part of the demo_repo fixture, not the IncidentPilot service. It exists
-so incident scenarios have a small, deterministic entrypoint to point evidence
-at. It performs no network or external calls.
+This is NOT part of the IncidentPilot service itself. It is a tiny, runnable
+app so incident scenarios can point evidence at real routes and line numbers.
+No database or external services are used.
 """
 
 from __future__ import annotations
 
-from app.routes.payments import create_payment
+from fastapi import FastAPI
+
+from app.routes import payments
+
+app = FastAPI(title="Demo Payments Service")
+app.include_router(payments.router)
 
 
-def handle_create_payment(payload: dict) -> tuple[int, dict]:
-    """Thin entrypoint the demo 'API' uses to create a payment."""
-    return create_payment(payload)
-
-
-if __name__ == "__main__":
-    status_code, body = handle_create_payment({"payment_id": "pay_123"})
-    print(status_code, body)
+@app.get("/health")
+def health() -> dict:
+    """Liveness probe."""
+    return {"status": "ok"}
