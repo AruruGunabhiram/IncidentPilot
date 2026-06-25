@@ -38,7 +38,7 @@ htmlcov/
 !demo/incidents/**/*.log
 *.tmp
 tmp/
-reports/
+/reports/
 docs/generated/
 app/storage/reports/*
 !app/storage/reports/.gitkeep
@@ -51,9 +51,5 @@ Thumbs.db
 *.swp
 *.swo
 
-# Graphify local cache/cost files only. Keep shareable root artifacts.
-graphify-out/cache/
-graphify-out/.graphify_*.json
-graphify-out/*cost*.json
-graphify-out/manifest.json
-tests/graphify-out/
+# Graphify output
+graphify-out/

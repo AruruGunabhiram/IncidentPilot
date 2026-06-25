@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.schemas.findings import Finding
 from app.schemas.report import IncidentReport
 from app.schemas.safety import SafetySummary
