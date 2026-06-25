@@ -1,0 +1,173 @@
+{
+  "incident_id": "inc_secret_in_logs",
+  "title": "Credentials leaked into CI logs during deploy",
+  "severity": "SEV2",
+  "affected_service": "payments-api",
+  "status": "awaiting_human_approval",
+  "summary": "The deploy workflow printed a GitHub token, database URL, and Bearer token into CI logs before failing. All three secrets were redacted before display; the credentials must be rotated.",
+  "confidence": 0.88,
+  "evidence": [
+    {
+      "id": "ev_log_1",
+      "source": "demo/incidents/secret_in_logs/ci.log",
+      "source_type": "ci_log",
+      "summary": "Deploy step failed.",
+      "snippet": "Deploy step failed: exit code 1",
+      "path": "demo/incidents/secret_in_logs/ci.log",
+      "line_start": 5,
+      "line_end": 5,
+      "metadata": {}
+    },
+    {
+      "id": "ev_log_2",
+      "source": "demo/incidents/secret_in_logs/ci.log",
+      "source_type": "ci_log",
+      "summary": "GitHub token printed to logs (redacted).",
+      "snippet": "Authenticating with token [REDACTED_SECRET]",
+      "path": "demo/incidents/secret_in_logs/ci.log",
+      "line_start": 2,
+      "line_end": 2,
+      "metadata": {"redaction_applied": "true"}
+    },
+    {
+      "id": "ev_log_3",
+      "source": "demo/incidents/secret_in_logs/ci.log",
+      "source_type": "ci_log",
+      "summary": "Database URL printed to logs (redacted).",
+      "snippet": "export DATABASE_URL=[REDACTED_SECRET]",
+      "path": "demo/incidents/secret_in_logs/ci.log",
+      "line_start": 3,
+      "line_end": 3,
+      "metadata": {"redaction_applied": "true"}
+    }
+  ],
+  "needs_human_review": true,
+  "blocked_reasons": [],
+  "primary_error": "Deploy step failed: exit code 1",
+  "log_finding": {
+    "summary": "Three credentials were printed into CI logs and redacted before display; the deploy step then failed.",
+    "confidence": 0.95,
+    "evidence": [
+      {
+        "id": "ev_log_2",
+        "source": "demo/incidents/secret_in_logs/ci.log",
+        "source_type": "ci_log",
+        "summary": "GitHub token printed to logs (redacted).",
+        "snippet": "Authenticating with token [REDACTED_SECRET]",
+        "path": "demo/incidents/secret_in_logs/ci.log",
+        "line_start": 2,
+        "line_end": 2,
+        "metadata": {"redaction_applied": "true"}
+      },
+      {
+        "id": "ev_log_3",
+        "source": "demo/incidents/secret_in_logs/ci.log",
+        "source_type": "ci_log",
+        "summary": "Database URL printed to logs (redacted).",
+        "snippet": "export DATABASE_URL=[REDACTED_SECRET]",
+        "path": "demo/incidents/secret_in_logs/ci.log",
+        "line_start": 3,
+        "line_end": 3,
+        "metadata": {"redaction_applied": "true"}
+      },
+      {
+        "id": "ev_log_1",
+        "source": "demo/incidents/secret_in_logs/ci.log",
+        "source_type": "ci_log",
+        "summary": "Deploy step failed.",
+        "snippet": "Deploy step failed: exit code 1",
+        "path": "demo/incidents/secret_in_logs/ci.log",
+        "line_start": 5,
+        "line_end": 5,
+        "metadata": {}
+      }
+    ],
+    "needs_human_review": true,
+    "blocked_reasons": [],
+    "primary_error": "Deploy step failed: exit code 1",
+    "failing_test": null,
+    "stack_trace_summary": null,
+    "redactions_applied": 3
+  },
+  "code_finding": null,
+  "root_cause": {
+    "summary": "The deploy workflow echoes credentials (GitHub token, DATABASE_URL, Bearer token) to stdout, exposing them in CI logs.",
+    "confidence": 0.85,
+    "evidence": [
+      {
+        "id": "ev_log_2",
+        "source": "demo/incidents/secret_in_logs/ci.log",
+        "source_type": "ci_log",
+        "summary": "GitHub token printed to logs (redacted).",
+        "snippet": "Authenticating with token [REDACTED_SECRET]",
+        "path": "demo/incidents/secret_in_logs/ci.log",
+        "line_start": 2,
+        "line_end": 2,
+        "metadata": {"redaction_applied": "true"}
+      },
+      {
+        "id": "ev_log_3",
+        "source": "demo/incidents/secret_in_logs/ci.log",
+        "source_type": "ci_log",
+        "summary": "Database URL printed to logs (redacted).",
+        "snippet": "export DATABASE_URL=[REDACTED_SECRET]",
+        "path": "demo/incidents/secret_in_logs/ci.log",
+        "line_start": 3,
+        "line_end": 3,
+        "metadata": {"redaction_applied": "true"}
+      }
+    ],
+    "needs_human_review": true,
+    "blocked_reasons": [],
+    "category": "secret_exposure",
+    "supporting_evidence_ids": ["ev_log_2", "ev_log_3"],
+    "alternatives": []
+  },
+  "fix_plan": {
+    "summary": "Rotate the exposed credentials and stop printing secrets in CI.",
+    "confidence": 0.8,
+    "evidence": [
+      {
+        "id": "ev_log_2",
+        "source": "demo/incidents/secret_in_logs/ci.log",
+        "source_type": "ci_log",
+        "summary": "GitHub token printed to logs (redacted).",
+        "snippet": "Authenticating with token [REDACTED_SECRET]",
+        "path": "demo/incidents/secret_in_logs/ci.log",
+        "line_start": 2,
+        "line_end": 2,
+        "metadata": {"redaction_applied": "true"}
+      }
+    ],
+    "needs_human_review": true,
+    "blocked_reasons": [],
+    "patch_strategy": "mitigation",
+    "steps": [
+      "Rotate the leaked GitHub token, database password, and Bearer token.",
+      "Store credentials as masked CI secrets instead of plaintext variables.",
+      "Remove the echo/export statements that print secrets to stdout."
+    ],
+    "regression_tests": [],
+    "rollback_plan": ["No code rollback needed; revert workflow changes if the deploy breaks."],
+    "risks": ["Credential rotation may briefly interrupt the deploy pipeline."]
+  },
+  "safety_review": {
+    "summary": "Secrets detected and redacted. Redacted report is safe to display. Human must rotate credentials before approving any GitHub issue.",
+    "confidence": 0.85,
+    "evidence": [],
+    "needs_human_review": true,
+    "blocked_reasons": [],
+    "approved_for_display": true,
+    "approved_for_github_issue": false,
+    "approved_for_pr": false,
+    "risk_level": "high",
+    "secrets_redacted": true,
+    "repo_paths_verified": true,
+    "confidence_above_threshold": true,
+    "human_approval_required": true,
+    "no_direct_production_change": true,
+    "required_human_action": "Rotate the exposed credentials, then review before approving GitHub issue creation."
+  },
+  "created_at": "2026-06-25T15:05:00Z",
+  "updated_at": "2026-06-25T15:05:00Z"
+}

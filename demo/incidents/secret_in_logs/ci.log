@@ -1,0 +1,5 @@
+2026-06-25T15:00:01Z Starting deploy job
+2026-06-25T15:00:02Z Authenticating with token ghp_FAKEFAKEFAKEFAKEFAKEFAKEFAKE012345
+2026-06-25T15:00:03Z export DATABASE_URL=postgres://app:fakepassword@db.internal:5432/payments
+2026-06-25T15:00:04Z curl -H "Authorization: Bearer fake-demo-token-1234567890abcdef" https://api.internal/deploy
+2026-06-25T15:00:05Z Deploy step failed: exit code 1

@@ -1,0 +1,96 @@
+{
+  "incident_id": "inc_ambiguous_error",
+  "title": "Intermittent payments failures with no clear root cause",
+  "severity": "UNKNOWN",
+  "affected_service": "payments-api",
+  "status": "blocked",
+  "summary": "CI logs show intermittent failures and a connection reset, but the evidence is insufficient to ground a failing test, code location, or root cause. The incident is escalated to human review.",
+  "confidence": 0.25,
+  "evidence": [
+    {
+      "id": "ev_log_1",
+      "source": "demo/incidents/ambiguous_error/ci.log",
+      "source_type": "ci_log",
+      "summary": "Transient network warning in CI.",
+      "snippet": "Warning: connection reset by peer",
+      "path": "demo/incidents/ambiguous_error/ci.log",
+      "line_start": 3,
+      "line_end": 3,
+      "metadata": {}
+    },
+    {
+      "id": "ev_log_2",
+      "source": "demo/incidents/ambiguous_error/ci.log",
+      "source_type": "ci_log",
+      "summary": "Non-deterministic test outcome.",
+      "snippet": "Test run finished with intermittent failures",
+      "path": "demo/incidents/ambiguous_error/ci.log",
+      "line_start": 5,
+      "line_end": 5,
+      "metadata": {}
+    }
+  ],
+  "needs_human_review": true,
+  "blocked_reasons": [
+    "Confidence 0.25 is below the human-review threshold.",
+    "No failing test or stack trace could be grounded in the logs.",
+    "Root cause could not be determined from available evidence."
+  ],
+  "primary_error": null,
+  "log_finding": {
+    "summary": "Logs show a connection reset and intermittent failures, but no assertion, stack trace, or specific failing test.",
+    "confidence": 0.3,
+    "evidence": [
+      {
+        "id": "ev_log_1",
+        "source": "demo/incidents/ambiguous_error/ci.log",
+        "source_type": "ci_log",
+        "summary": "Transient network warning in CI.",
+        "snippet": "Warning: connection reset by peer",
+        "path": "demo/incidents/ambiguous_error/ci.log",
+        "line_start": 3,
+        "line_end": 3,
+        "metadata": {}
+      },
+      {
+        "id": "ev_log_2",
+        "source": "demo/incidents/ambiguous_error/ci.log",
+        "source_type": "ci_log",
+        "summary": "Non-deterministic test outcome.",
+        "snippet": "Test run finished with intermittent failures",
+        "path": "demo/incidents/ambiguous_error/ci.log",
+        "line_start": 5,
+        "line_end": 5,
+        "metadata": {}
+      }
+    ],
+    "needs_human_review": true,
+    "blocked_reasons": ["No deterministic failing test or stack trace found in logs."],
+    "primary_error": null,
+    "failing_test": null,
+    "stack_trace_summary": null,
+    "redactions_applied": 0
+  },
+  "code_finding": null,
+  "root_cause": null,
+  "fix_plan": null,
+  "safety_review": {
+    "summary": "No secrets found. Evidence is insufficient for an automated hypothesis; human investigation is required.",
+    "confidence": 0.3,
+    "evidence": [],
+    "needs_human_review": true,
+    "blocked_reasons": ["Confidence is below the human-review threshold."],
+    "approved_for_display": true,
+    "approved_for_github_issue": false,
+    "approved_for_pr": false,
+    "risk_level": "medium",
+    "secrets_redacted": false,
+    "repo_paths_verified": true,
+    "confidence_above_threshold": false,
+    "human_approval_required": true,
+    "no_direct_production_change": true,
+    "required_human_action": "Manually investigate the intermittent failures; insufficient evidence for an automated root cause."
+  },
+  "created_at": "2026-06-25T16:05:00Z",
+  "updated_at": "2026-06-25T16:05:00Z"
+}

@@ -1,0 +1,160 @@
+{
+  "incident_id": "inc_broken_api_route",
+  "title": "Payments API create-payment route returns HTTP 500",
+  "severity": "SEV2",
+  "affected_service": "payments-api",
+  "status": "awaiting_human_approval",
+  "summary": "The create-payment route returns HTTP 500 for valid payloads, failing the CI test that expects 201. A hardcoded failure return in create_payment is the grounded cause.",
+  "confidence": 0.82,
+  "evidence": [
+    {
+      "id": "ev_ci_1",
+      "source": "demo/incidents/broken_api_route/ci.log",
+      "source_type": "ci_log",
+      "summary": "CI assertion failure: expected 201, got 500.",
+      "snippet": "AssertionError: expected status code 201, got 500",
+      "path": "demo/incidents/broken_api_route/ci.log",
+      "line_start": 3,
+      "line_end": 3,
+      "metadata": {}
+    },
+    {
+      "id": "ev_api_1",
+      "source": "demo/incidents/broken_api_route/api_response.json",
+      "source_type": "api_response",
+      "summary": "POST /payments returned HTTP 500.",
+      "snippet": "{\"status_code\": 500, \"body\": {\"detail\": \"Payment route failed\"}}",
+      "path": "demo/incidents/broken_api_route/api_response.json",
+      "line_start": null,
+      "line_end": null,
+      "metadata": {}
+    },
+    {
+      "id": "ev_code_1",
+      "source": "demo/demo_repo/app/routes/payments.py",
+      "source_type": "repo_file",
+      "summary": "create_payment hardcodes a 500 failure return.",
+      "snippet": "return 500, {\"error\": \"Payment route failed\"}",
+      "path": "demo/demo_repo/app/routes/payments.py",
+      "line_start": 7,
+      "line_end": 7,
+      "metadata": {}
+    }
+  ],
+  "needs_human_review": true,
+  "blocked_reasons": [],
+  "primary_error": "AssertionError: expected status code 201, got 500",
+  "log_finding": {
+    "summary": "CI test for create-payment failed because the route returned 500 instead of 201.",
+    "confidence": 0.9,
+    "evidence": [
+      {
+        "id": "ev_ci_1",
+        "source": "demo/incidents/broken_api_route/ci.log",
+        "source_type": "ci_log",
+        "summary": "CI assertion failure: expected 201, got 500.",
+        "snippet": "AssertionError: expected status code 201, got 500",
+        "path": "demo/incidents/broken_api_route/ci.log",
+        "line_start": 3,
+        "line_end": 3,
+        "metadata": {}
+      }
+    ],
+    "needs_human_review": false,
+    "blocked_reasons": [],
+    "primary_error": "AssertionError: expected status code 201, got 500",
+    "failing_test": "tests/test_payments.py::test_create_payment_returns_created",
+    "stack_trace_summary": "AssertionError raised in tests/test_payments.py asserting status_code == 201.",
+    "redactions_applied": 0
+  },
+  "code_finding": {
+    "summary": "create_payment in the demo repo returns a hardcoded 500 for valid payloads.",
+    "confidence": 0.85,
+    "evidence": [
+      {
+        "id": "ev_code_1",
+        "source": "demo/demo_repo/app/routes/payments.py",
+        "source_type": "repo_file",
+        "summary": "create_payment hardcodes a 500 failure return.",
+        "snippet": "return 500, {\"error\": \"Payment route failed\"}",
+        "path": "demo/demo_repo/app/routes/payments.py",
+        "line_start": 7,
+        "line_end": 7,
+        "metadata": {}
+      }
+    ],
+    "needs_human_review": true,
+    "blocked_reasons": [],
+    "matched_files": ["demo/demo_repo/app/routes/payments.py"],
+    "suspected_symbols": ["create_payment"],
+    "missing_files": []
+  },
+  "root_cause": {
+    "summary": "create_payment unconditionally returns HTTP 500 for valid payloads due to a hardcoded failure return.",
+    "confidence": 0.8,
+    "evidence": [
+      {
+        "id": "ev_code_1",
+        "source": "demo/demo_repo/app/routes/payments.py",
+        "source_type": "repo_file",
+        "summary": "create_payment hardcodes a 500 failure return.",
+        "snippet": "return 500, {\"error\": \"Payment route failed\"}",
+        "path": "demo/demo_repo/app/routes/payments.py",
+        "line_start": 7,
+        "line_end": 7,
+        "metadata": {}
+      }
+    ],
+    "needs_human_review": true,
+    "blocked_reasons": [],
+    "category": "logic_error",
+    "supporting_evidence_ids": ["ev_code_1", "ev_ci_1"],
+    "alternatives": ["Upstream payment gateway returning 500 (not supported by the evidence)."]
+  },
+  "fix_plan": {
+    "summary": "Return HTTP 201 with the created payment for valid payloads instead of the hardcoded 500.",
+    "confidence": 0.78,
+    "evidence": [
+      {
+        "id": "ev_code_1",
+        "source": "demo/demo_repo/app/routes/payments.py",
+        "source_type": "repo_file",
+        "summary": "create_payment hardcodes a 500 failure return.",
+        "snippet": "return 500, {\"error\": \"Payment route failed\"}",
+        "path": "demo/demo_repo/app/routes/payments.py",
+        "line_start": 7,
+        "line_end": 7,
+        "metadata": {}
+      }
+    ],
+    "needs_human_review": true,
+    "blocked_reasons": [],
+    "patch_strategy": "patch",
+    "steps": [
+      "Replace the hardcoded failure return in create_payment.",
+      "Return 201 with {\"payment_id\": payment_id} for valid payloads."
+    ],
+    "regression_tests": ["tests/test_payments.py::test_create_payment_returns_created"],
+    "rollback_plan": ["Revert the change to demo/demo_repo/app/routes/payments.py."],
+    "risks": ["Change is isolated to the demo create_payment route."]
+  },
+  "safety_review": {
+    "summary": "No secrets detected. Report is safe to display. Human approval required before any GitHub issue.",
+    "confidence": 0.8,
+    "evidence": [],
+    "needs_human_review": true,
+    "blocked_reasons": [],
+    "approved_for_display": true,
+    "approved_for_github_issue": false,
+    "approved_for_pr": false,
+    "risk_level": "low",
+    "secrets_redacted": false,
+    "repo_paths_verified": true,
+    "confidence_above_threshold": true,
+    "human_approval_required": true,
+    "no_direct_production_change": true,
+    "required_human_action": "Review the report and approve GitHub issue creation."
+  },
+  "created_at": "2026-06-25T14:05:00Z",
+  "updated_at": "2026-06-25T14:05:00Z"
+}

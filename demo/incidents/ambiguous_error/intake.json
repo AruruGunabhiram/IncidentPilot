@@ -1,0 +1,15 @@
+{
+  "incident_id": "inc_ambiguous_error",
+  "scenario": "ambiguous_error",
+  "service": "payments-api",
+  "trigger_type": "unknown",
+  "summary": "Intermittent 500s reported with no consistent stack trace or reproducible failing test.",
+  "repo_owner": "incidentpilot-demo",
+  "repo_name": "demo_repo",
+  "repo_path": "demo/demo_repo",
+  "signals": [
+    "Sporadic 500 responses",
+    "No reproducible failing test"
+  ],
+  "created_at": "2026-06-25T16:00:00Z"
+}

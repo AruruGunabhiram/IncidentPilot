@@ -1,0 +1,6 @@
+2026-06-25T16:00:01Z Starting CI run
+2026-06-25T16:00:03Z Running tests/test_payments.py
+2026-06-25T16:00:05Z Warning: connection reset by peer
+2026-06-25T16:00:06Z Retrying request (attempt 2)
+2026-06-25T16:00:08Z Test run finished with intermittent failures
+2026-06-25T16:00:09Z CI completed with warnings
