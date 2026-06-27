@@ -18,6 +18,8 @@ No agents, no LLM, no network, no real GitHub writes.
 
 from __future__ import annotations
 
+import socket
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -244,3 +246,79 @@ def test_reject_then_reapprove_unlocks(store_reset) -> None:
     )
     assert result.mode == "preview"
     assert result.created is False
+
+
+# --- Approve endpoint records an auditable, action-specific approval --------
+
+
+def test_approve_create_github_issue_action(client: TestClient) -> None:
+    """POST /approve returns approved AND persists the decision for that action.
+
+    Covers the request shape required by Phase 8: an explicit ``create_github_issue``
+    approval with an attributed approver and note must be stored against that
+    incident/action so the gate can later read it back.
+    """
+    client.post("/incidents/trigger", json={"scenario": "broken_api_route"})
+    client.post("/incidents/inc_001/investigate")
+
+    response = client.post(
+        "/incidents/inc_001/approve",
+        json={
+            "action": "create_github_issue",
+            "approved_by": "demo_user",
+            "note": "Approved for demo",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "approved"
+    assert body["approved"] is True
+    assert body["action"] == "create_github_issue"
+    assert body["approved_by"] == "demo_user"
+
+    # The approval is stored for that incident/action (not just echoed back).
+    record = approval_service.get_record("inc_001", "create_github_issue")
+    assert record is not None
+    assert record.incident_id == "inc_001"
+    assert record.action == "create_github_issue"
+    assert record.status == "approved"
+    assert record.approved is True
+    assert record.approved_by == "demo_user"
+    assert record.note == "Approved for demo"
+
+
+# --- No GitHub client / network create call ever happens --------------------
+
+
+def test_no_github_network_write_even_when_approved(store_reset, monkeypatch) -> None:
+    """The approved dry-run path must never open an outbound network connection.
+
+    There is no live GitHub client in this build, but this test fails loudly if
+    one is ever wired in without keeping the dry-run guarantee: any attempt to
+    open a socket during issue creation raises, so a real ``create_issue`` write
+    cannot slip through. We verify the full approved flow stays a redacted
+    preview with no network egress.
+    """
+
+    def _no_network(*args, **kwargs):  # pragma: no cover - only hit on regression
+        raise AssertionError(
+            "Outbound network connection attempted during GitHub issue creation; "
+            "no real GitHub client call is allowed in this phase."
+        )
+
+    monkeypatch.setattr(socket.socket, "connect", _no_network)
+    monkeypatch.setattr(socket, "create_connection", _no_network)
+
+    svc.investigate_incident("broken_api_route", persist=False)
+    approval_service.approve_action(
+        "inc_001", "create_github_issue", approved_by="demo_user"
+    )
+
+    result = svc.create_github_issue(
+        "inc_001", GitHubIssueOptions(), github_configured=True, env_dry_run=True
+    )
+    # Approved, but still a preview only — never a real GitHub write.
+    assert result.created is False
+    assert result.dry_run is True
+    assert result.mode == "preview"
+    assert result.url is None
