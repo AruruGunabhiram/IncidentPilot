@@ -23,7 +23,9 @@ from app.agents import (
     GroundedDeterministicClient,
     run_agent_investigation,
 )
-from app.agents.base import PROMPTS_DIR, REQUIRED_PROMPT_RULES
+from app.agents.base import EvidenceIndex, PROMPTS_DIR, REQUIRED_PROMPT_RULES
+from app.agents.code_context_agent import CodeContextAgent
+from app.agents.log_investigator_agent import LogInvestigatorAgent
 from app.config import Settings
 from app.schemas.report import IncidentReport
 from app.services import investigation_service as svc
@@ -346,3 +348,205 @@ def test_deterministic_service_is_unchanged_when_agents_unused():
     # differ between two independent investigations.
     skip = {"created_at", "updated_at"}
     assert before.model_dump(exclude=skip) == after.model_dump(exclude=skip)
+
+
+# ---------------------------------------------------------------------------
+# Phase 6.1: the JSON each prompt documents must be accepted by its parser
+#
+# These tests pin the prompt/parser contract. A stub client emits the *exact*
+# shape documented in each prompt's "Output JSON shape" section (field names and
+# types written out explicitly, with grounded values from the proposal). If a
+# parser ever stops accepting the documented shape — or a prompt drifts back to
+# the old object shapes — these fail loudly instead of silently degrading agent
+# mode into a permanent deterministic fallback.
+# ---------------------------------------------------------------------------
+
+
+class DocumentedShapeClient(GroundedDeterministicClient):
+    """Emit each agent's output in the exact JSON shape its prompt documents."""
+
+    def complete(self, *, agent, prompt, payload):  # noqa: ANN001
+        p = dict(payload.get("proposal", {}))
+        if agent == "triage":
+            return json.dumps(
+                {
+                    "severity": p.get("severity"),
+                    "affected_service": p.get("affected_service"),
+                    "primary_error": p.get("primary_error"),
+                    "confidence": p.get("confidence"),
+                    "needs_human_review": p.get("needs_human_review", True),
+                    "summary": p.get("summary"),
+                }
+            )
+        if agent == "log_investigator":
+            return json.dumps(
+                {
+                    "primary_error": p.get("primary_error"),
+                    "failing_test": p.get("failing_test"),
+                    "stack_trace_summary": p.get("stack_trace_summary"),
+                    "redactions_applied": p.get("redactions_applied", 0),
+                    "evidence_ids": list(p.get("evidence_ids", [])),
+                    "needs_human_review": p.get("needs_human_review", True),
+                    "summary": p.get("summary"),
+                }
+            )
+        if agent == "code_context":
+            return json.dumps(
+                {
+                    "matched_files": list(p.get("matched_files", [])),
+                    "suspected_symbols": list(p.get("suspected_symbols", [])),
+                    "missing_files": list(p.get("missing_files", [])),
+                    "evidence_ids": list(p.get("evidence_ids", [])),
+                    "needs_human_review": p.get("needs_human_review", True),
+                    "summary": p.get("summary"),
+                }
+            )
+        if agent == "fix_planner":
+            # The documented shape is the nested root_cause/fix_plan objects the
+            # proposal already carries, with a top-level needs_human_review.
+            return json.dumps(p)
+        if agent == "safety_reviewer":
+            return json.dumps(
+                {
+                    "approved_for_display": p.get("approved_for_display"),
+                    "approved_for_github_issue": p.get("approved_for_github_issue"),
+                    "approved_for_pr": p.get("approved_for_pr", False),
+                    "risk_level": p.get("risk_level"),
+                    "secrets_detected": p.get("secrets_detected", False),
+                    "redactions_applied": p.get("redactions_applied", 0),
+                    "needs_human_review": p.get("needs_human_review", True),
+                    "summary": p.get("summary"),
+                }
+            )
+        return super().complete(agent=agent, prompt=prompt, payload=payload)
+
+
+def test_documented_prompt_shapes_are_accepted_and_keep_parity():
+    """Every prompt-documented shape is accepted; broken_api_route parity holds."""
+    det = _deterministic("broken_api_route")
+    result = run_agent_investigation("broken_api_route", model=DocumentedShapeClient())
+
+    # No parser rejected its own documented contract -> every step is ok, and
+    # the agent report (not deterministic fallback) is chosen.
+    assert [o.status for o in result.outcomes] == ["ok"] * len(AGENT_SEQUENCE)
+    assert result.mode == "agent"
+    assert result.fallback_reasons == []
+
+    # Same verified repo file and same root cause as deterministic mode.
+    assert result.report.code_finding.matched_files == det.code_finding.matched_files
+    assert "app/routes/payments.py" in result.report.code_finding.matched_files
+    assert result.report.root_cause.category == det.root_cause.category
+    assert result.report.severity == det.severity
+    assert result.report.confidence >= det.confidence
+
+
+# ---- code_context.md: matched_files is a list of strings, never objects -----
+
+
+class CodeContextObjectShapeClient(GroundedDeterministicClient):
+    """Regression guard: matched_files as objects (the pre-6.1 prompt drift)."""
+
+    def complete(self, *, agent, prompt, payload):  # noqa: ANN001
+        if agent == "code_context":
+            p = dict(payload.get("proposal", {}))
+            return json.dumps(
+                {
+                    "matched_files": [
+                        {"path": path, "path_verified": True}
+                        for path in p.get("matched_files", [])
+                    ],
+                    "suspected_symbols": [],
+                    "missing_files": [],
+                    "evidence_ids": [],
+                    "needs_human_review": False,
+                    "summary": "object-shaped matched_files",
+                }
+            )
+        return super().complete(agent=agent, prompt=prompt, payload=payload)
+
+
+def test_code_context_object_matched_files_shape_is_rejected():
+    det = _deterministic("broken_api_route")
+    result = run_agent_investigation(
+        "broken_api_route", model=CodeContextObjectShapeClient()
+    )
+
+    code = next(o for o in result.outcomes if o.name == "code_context")
+    assert code.status == "invalid"
+    assert result.mode == "deterministic_fallback"
+    # The real verified file still wins; no object shape leaks into the report.
+    assert result.report.code_finding.matched_files == det.code_finding.matched_files
+
+
+def test_code_context_string_matched_files_shape_is_accepted():
+    det = _deterministic("broken_api_route")
+    index = EvidenceIndex.from_report(det)
+    documented = json.dumps(
+        {
+            "matched_files": list(det.code_finding.matched_files),
+            "suspected_symbols": list(det.code_finding.suspected_symbols),
+            "missing_files": [],
+            "evidence_ids": [e.id for e in det.code_finding.evidence],
+            "needs_human_review": False,
+            "summary": "string-shaped matched_files",
+        }
+    )
+
+    class _Client(GroundedDeterministicClient):
+        def complete(self, *, agent, prompt, payload):  # noqa: ANN001
+            return documented
+
+    outcome = CodeContextAgent().run(det, index, _Client())
+    assert outcome.status == "ok"
+    assert outcome.data["matched_files"] == list(det.code_finding.matched_files)
+
+
+# ---- log_investigator.md: evidence is referenced by id, not as objects ------
+
+
+def test_log_investigator_accepts_documented_evidence_ids():
+    det = _deterministic("broken_api_route")
+    index = EvidenceIndex.from_report(det)
+    grounded_ids = [e.id for e in det.log_finding.evidence]
+    documented = json.dumps(
+        {
+            "primary_error": det.log_finding.primary_error,
+            "failing_test": det.log_finding.failing_test,
+            "stack_trace_summary": det.log_finding.stack_trace_summary,
+            "redactions_applied": det.log_finding.redactions_applied,
+            "evidence_ids": grounded_ids,
+            "needs_human_review": False,
+            "summary": "documented evidence_ids shape",
+        }
+    )
+
+    class _Client(GroundedDeterministicClient):
+        def complete(self, *, agent, prompt, payload):  # noqa: ANN001
+            return documented
+
+    outcome = LogInvestigatorAgent().run(det, index, _Client())
+    assert outcome.status == "ok"
+    assert outcome.data["evidence_ids"] == grounded_ids
+
+
+def test_log_investigator_rejects_ungrounded_evidence_ids():
+    det = _deterministic("broken_api_route")
+    index = EvidenceIndex.from_report(det)
+    ungrounded = json.dumps(
+        {
+            "primary_error": det.log_finding.primary_error,
+            "failing_test": det.log_finding.failing_test,
+            "stack_trace_summary": det.log_finding.stack_trace_summary,
+            "redactions_applied": det.log_finding.redactions_applied,
+            "evidence_ids": ["ev_not_produced_by_any_tool"],
+            "needs_human_review": False,
+            "summary": "ungrounded evidence id",
+        }
+    )
+
+    class _Client(GroundedDeterministicClient):
+        def complete(self, *, agent, prompt, payload):  # noqa: ANN001
+            return ungrounded
+
+    outcome = LogInvestigatorAgent().run(det, index, _Client())
+    assert outcome.status == "invalid"
