@@ -2,10 +2,17 @@ import json
 from pathlib import Path
 
 from app.tools.redactor import REDACTION_MARKER
+import pytest
+
+from app.tools.path_guard import PathGuardError
 from app.tools.report_writer import (
+    build_markdown_report,
     build_report_dict,
+    ensure_report_safe,
     render_json,
     render_markdown,
+    write_json_report,
+    write_markdown_report,
     write_report,
 )
 
@@ -99,3 +106,84 @@ def test_real_expected_report_renders_without_leaking_secrets():
     assert md.startswith("# ")
     # This clean report needs no redaction, so none should appear.
     assert REDACTION_MARKER not in md
+
+
+# ---- new spec API: write_*/build_markdown_report/ensure_report_safe --------
+
+
+def test_markdown_includes_summary_evidence_confidence():
+    md = build_markdown_report(REPORT_WITH_SECRET)
+
+    assert "## Summary" in md
+    assert "## Evidence" in md
+    assert "## Confidence" in md
+    # Evidence shows source path + line range.
+    assert "demo/incidents/secret_in_logs/ci.log:3" in md
+
+
+def test_write_json_report_returns_valid_json():
+    out = write_json_report(REPORT_WITH_SECRET)
+    parsed = json.loads(out)  # valid JSON
+    assert parsed["incident_id"] == "inc_test"
+    # Pretty-printed with indent=2.
+    assert "\n  " in out
+
+
+def test_secrets_redacted_in_markdown():
+    md = write_markdown_report(REPORT_WITH_SECRET)
+    assert "ghp_fakeTokenForDemoOnly1234567890" not in md
+    assert "fake-api-key-12345" not in md
+    assert REDACTION_MARKER in md
+
+
+def test_secrets_redacted_in_json():
+    out = write_json_report(REPORT_WITH_SECRET)
+    assert "ghp_fakeTokenForDemoOnly1234567890" not in out
+    assert "fake-api-key-12345" not in out
+    assert REDACTION_MARKER in out
+
+
+def test_missing_optional_fields_do_not_crash():
+    sparse = {"incident_id": "inc_min", "title": "Minimal"}
+
+    md = build_markdown_report(sparse)
+    js = write_json_report(sparse)
+
+    # Every mandated section renders, with "Not provided" fallbacks.
+    for heading in (
+        "## Summary",
+        "## Severity",
+        "## Affected Service",
+        "## Primary Error",
+        "## Root Cause Hypothesis",
+        "## Evidence",
+        "## Fix Plan",
+        "## Regression Test Plan",
+        "## Safety Review",
+        "## Confidence",
+        "## Human Review Status",
+        "## Blocked Reasons",
+    ):
+        assert heading in md
+    assert "Not provided" in md
+    assert json.loads(js)["incident_id"] == "inc_min"
+
+
+def test_ensure_report_safe_redacts_text():
+    redacted = ensure_report_safe("token api_key=fake-secret-value-123 here")
+    assert "fake-secret-value-123" not in redacted
+    assert REDACTION_MARKER in redacted
+
+
+def test_write_to_disk_with_output_root_blocks_traversal(tmp_path):
+    # Writing inside the allowed root works.
+    safe_target = tmp_path / "report.json"
+    write_json_report(REPORT_WITH_SECRET, safe_target, output_root=tmp_path)
+    assert safe_target.is_file()
+    json.loads(safe_target.read_text(encoding="utf-8"))
+
+    # Escaping the allowed root is blocked.
+    with pytest.raises(PathGuardError):
+        write_json_report(
+            REPORT_WITH_SECRET, "../escape.json", output_root=tmp_path
+        )
