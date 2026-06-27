@@ -43,11 +43,10 @@ from app.schemas.findings import (
 from app.schemas.incident import IncidentIntake, IncidentTriggerResponse
 from app.schemas.report import IncidentReport
 from app.schemas.safety import SafetyReview
+from app.services import safety_gate
 from app.services.errors import (
-    ApprovalRequired,
     IncidentNotFound,
     ReportNotReady,
-    SafetyBlocked,
     ScenarioNotFound,
 )
 from app.storage import incident_store
@@ -251,19 +250,11 @@ def create_github_issue(
     if report is None:
         raise ReportNotReady("Investigate the incident before creating a GitHub issue.")
 
-    safety = report.safety_review
-    if safety is None or not safety.approved_for_github_issue:
-        raise SafetyBlocked(
-            "Safety review does not allow a GitHub issue for this incident "
-            "(secrets present, ungrounded root cause, or low confidence)."
-        )
-
+    # Deterministic, authoritative gate. Raises SafetyBlocked (unsafe report) or
+    # ApprovalRequired (no human approval on file) BEFORE any issue payload is
+    # built or any GitHub client could be touched.
     approval = incident_store.get_approval(incident_id, "create_github_issue")
-    if approval is None or not approval.approved:
-        raise ApprovalRequired(
-            "Human approval is required before creating a GitHub issue. "
-            "POST to /incidents/{id}/approve first."
-        )
+    safety_gate.assert_github_issue_allowed(report, approval)
 
     title, body, labels = _build_issue_preview(report, extra_labels=options.labels)
 
@@ -376,7 +367,10 @@ def _investigate(
     )
     fix_plan = _build_fix_plan(category, frames, intake, log, code_evidence, secret_evidence)
     safety_review = _build_safety_review(
-        secrets_present, code_grounded, above_threshold, confidence, category, log,
+        secrets_present=secrets_present,
+        unverified_reference=bool(missing_files),
+        confidence=confidence,
+        redactions_applied=log.redactions_applied,
     )
 
     top_evidence = _dedupe_evidence(
@@ -436,10 +430,14 @@ def _no_evidence_report(
         code_finding=None,
         root_cause=None,
         fix_plan=None,
-        safety_review=SafetyReview(
+        safety_review=safety_gate.evaluate_safety(
+            secrets_present=False,
+            unverified_file_reference=False,
+            confidence=0.0,
             summary="No evidence available; nothing is safe to act on automatically.",
-            risk_level="medium",
-            required_human_action="Locate the CI log / failure source and investigate manually.",
+            required_human_action=(
+                "Locate the CI log / failure source and investigate manually."
+            ),
         ),
         created_at=now,
         updated_at=now,
@@ -933,64 +931,25 @@ def _build_fix_plan(
 
 
 def _build_safety_review(
+    *,
     secrets_present: bool,
-    code_grounded: bool,
-    above_threshold: bool,
+    unverified_reference: bool,
     confidence: float,
-    category: str,
-    log: CILogResult,
+    redactions_applied: int,
 ) -> SafetyReview:
-    approved_for_issue = (not secrets_present) and code_grounded and above_threshold
-    risk = "high" if secrets_present else ("low" if (code_grounded and above_threshold) else "medium")
-    secret_scan_passed = True
+    """Delegate to the authoritative deterministic safety gate.
 
-    blocked: list[str] = []
-    if secrets_present:
-        blocked.append("Report depends on CI log content that contained secrets; external sharing needs human review.")
-    if not code_grounded:
-        blocked.append("Root cause is not grounded to a verified repo location.")
-    if not above_threshold:
-        blocked.append(f"Confidence {confidence:.2f} is below the {CONFIDENCE_THRESHOLD:.2f} threshold.")
-
-    if approved_for_issue:
-        action = "Review the grounded report, then approve GitHub issue creation."
-    elif secrets_present:
-        action = "Rotate the exposed credentials, then review the redacted report before any external sharing."
-    else:
-        action = "Manually investigate; there is insufficient grounded evidence for an automated issue."
-
-    if secrets_present:
-        summary = (
-            f"Secret scan passed: {log.redactions_applied} credential-like value(s) "
-            "detected and redacted. Report is safe to display. GitHub issue is "
-            f"{'eligible after human approval' if approved_for_issue else 'blocked'}."
-        )
-    else:
-        summary = (
-            "Secret scan passed: no credential-like values detected. Report is safe "
-            "to display. GitHub issue is "
-            f"{'eligible after human approval' if approved_for_issue else 'blocked'}."
-        )
-
-    return SafetyReview(
-        summary=redact_secrets(summary),
+    The gate (``app.services.safety_gate``) is the single source of truth for the
+    safety verdict; this wrapper only forwards the grounded signals the
+    investigation computed. ``unverified_reference`` is ``True`` when the report
+    cites a repo path the tools could not verify (e.g. a stack frame in a file
+    that is not present in the searched repo snapshot).
+    """
+    return safety_gate.evaluate_safety(
+        secrets_present=secrets_present,
+        unverified_file_reference=unverified_reference,
         confidence=confidence,
-        evidence=[],
-        needs_human_review=secrets_present or not code_grounded or not above_threshold,
-        blocked_reasons=blocked,
-        approved_for_display=True,
-        approved_for_github_issue=approved_for_issue,
-        approved_for_pr=False,
-        risk_level=risk,
-        secrets_detected=secrets_present,
-        redactions_applied=log.redactions_applied,
-        secret_scan_passed=secret_scan_passed,
-        secrets_redacted=secrets_present,
-        repo_paths_verified=True,
-        confidence_above_threshold=above_threshold,
-        human_approval_required=True,
-        no_direct_production_change=True,
-        required_human_action=action,
+        redactions_applied=redactions_applied,
     )
 
 
