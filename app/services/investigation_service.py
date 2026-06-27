@@ -859,6 +859,7 @@ def _build_safety_review(
 ) -> SafetyReview:
     approved_for_issue = (not secrets_present) and code_grounded and above_threshold
     risk = "high" if secrets_present else ("low" if (code_grounded and above_threshold) else "medium")
+    secret_scan_passed = True
 
     blocked: list[str] = []
     if secrets_present:
@@ -875,12 +876,21 @@ def _build_safety_review(
     else:
         action = "Manually investigate; there is insufficient grounded evidence for an automated issue."
 
-    return SafetyReview(
-        summary=redact_secrets(
-            f"{log.redactions_applied} secret(s) redacted. Report is redacted and safe to "
-            f"display. GitHub issue is "
+    if secrets_present:
+        summary = (
+            f"Secret scan passed: {log.redactions_applied} credential-like value(s) "
+            "detected and redacted. Report is safe to display. GitHub issue is "
             f"{'eligible after human approval' if approved_for_issue else 'blocked'}."
-        ),
+        )
+    else:
+        summary = (
+            "Secret scan passed: no credential-like values detected. Report is safe "
+            "to display. GitHub issue is "
+            f"{'eligible after human approval' if approved_for_issue else 'blocked'}."
+        )
+
+    return SafetyReview(
+        summary=redact_secrets(summary),
         confidence=confidence,
         evidence=[],
         needs_human_review=secrets_present or not code_grounded or not above_threshold,
@@ -889,6 +899,9 @@ def _build_safety_review(
         approved_for_github_issue=approved_for_issue,
         approved_for_pr=False,
         risk_level=risk,
+        secrets_detected=secrets_present,
+        redactions_applied=log.redactions_applied,
+        secret_scan_passed=secret_scan_passed,
         secrets_redacted=secrets_present,
         repo_paths_verified=True,
         confidence_above_threshold=above_threshold,

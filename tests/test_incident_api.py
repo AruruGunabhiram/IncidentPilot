@@ -160,6 +160,10 @@ def test_report_contains_all_required_grounded_fields(client: TestClient) -> Non
     # safety_review (a.k.a. safety_status)
     assert report["safety_review"] is not None
     assert report["safety_review"]["risk_level"] in {"low", "medium", "high", "critical"}
+    assert report["safety_review"]["secret_scan_passed"] is True
+    assert report["safety_review"]["secrets_detected"] is False
+    assert report["safety_review"]["redactions_applied"] == 0
+    assert report["safety_review"]["secrets_redacted"] is False
 
 
 def test_report_matches_investigation_output(client: TestClient) -> None:
@@ -309,6 +313,9 @@ def test_secret_scenario_redacts_and_blocks_issue(client: TestClient) -> None:
     # Redactions were applied (count > 0) and the marker is present.
     assert "[REDACTED_SECRET" in blob
     assert report["log_finding"]["redactions_applied"] > 0
+    assert report["safety_review"]["secret_scan_passed"] is True
+    assert report["safety_review"]["secrets_detected"] is True
+    assert report["safety_review"]["redactions_applied"] == report["log_finding"]["redactions_applied"]
     assert report["safety_review"]["secrets_redacted"] is True
     assert report["needs_human_review"] is True
 

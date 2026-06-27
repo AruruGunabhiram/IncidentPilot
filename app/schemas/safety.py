@@ -21,6 +21,9 @@ class SafetyReview(ReviewedOutput):
     approved_for_github_issue: bool = False
     approved_for_pr: bool = False
     risk_level: Literal["low", "medium", "high", "critical"] = "high"
+    secrets_detected: bool = False
+    redactions_applied: int = Field(default=0, ge=0)
+    secret_scan_passed: bool = False
     secrets_redacted: bool = False
     repo_paths_verified: bool = False
     confidence_above_threshold: bool = False

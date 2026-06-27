@@ -94,6 +94,10 @@ def test_investigate_broken_api_route_is_grounded(client: TestClient) -> None:
     assert report["fix_plan"]["regression_tests"]  # regression test plan present
     assert report["needs_human_review"] is False
     assert report["confidence"] >= 0.6
+    assert report["safety_review"]["secret_scan_passed"] is True
+    assert report["safety_review"]["secrets_detected"] is False
+    assert report["safety_review"]["redactions_applied"] == 0
+    assert report["safety_review"]["secrets_redacted"] is False
 
     # Every cited evidence item carries a real, positive line range (except the
     # optional API-response item, which has no single line).
@@ -156,6 +160,9 @@ def test_secret_scenario_redacts_and_blocks_issue(client: TestClient) -> None:
     for secret in RAW_FAKE_SECRETS:
         assert secret not in blob, f"raw secret leaked: {secret}"
     assert "[REDACTED_SECRET" in blob
+    assert report["safety_review"]["secret_scan_passed"] is True
+    assert report["safety_review"]["secrets_detected"] is True
+    assert report["safety_review"]["redactions_applied"] == report["log_finding"]["redactions_applied"]
     assert report["safety_review"]["secrets_redacted"] is True
     assert report["needs_human_review"] is True
 

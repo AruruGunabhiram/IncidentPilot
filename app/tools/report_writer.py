@@ -196,6 +196,9 @@ def build_markdown_report(report: Any) -> str:
         ("Approved for display", safety.get("approved_for_display")),
         ("Approved for GitHub issue", safety.get("approved_for_github_issue")),
         ("Risk level", safety.get("risk_level")),
+        ("Secret scan passed", safety.get("secret_scan_passed")),
+        ("Secrets detected", safety.get("secrets_detected")),
+        ("Redactions applied", safety.get("redactions_applied")),
         ("Human approval required", safety.get("human_approval_required")),
         ("Required human action", safety.get("required_human_action")),
     ]

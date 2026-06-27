@@ -37,10 +37,27 @@ curl -X POST http://127.0.0.1:8000/incidents/trigger \
   -d '{"scenario":"broken_api_route"}'
 ```
 
-## Read Placeholder Report
+## Investigate The Incident
+
+```bash
+curl -X POST http://127.0.0.1:8000/incidents/inc_001/investigate
+```
+
+## Read The Report
 
 ```bash
 curl http://127.0.0.1:8000/incidents/inc_001/report
 ```
 
-The report is intentionally placeholder data until agent orchestration is added.
+The clean `broken_api_route` scenario should show that the secret scan ran and
+found no secrets:
+
+```json
+{
+  "safety_review": {
+    "secrets_detected": false,
+    "redactions_applied": 0,
+    "secret_scan_passed": true
+  }
+}
+```

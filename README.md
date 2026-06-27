@@ -10,13 +10,16 @@ This repository currently includes only the local backend foundation:
 
 - FastAPI application
 - Health check endpoint
-- Mock incident trigger endpoint
-- Placeholder structured report endpoint
+- Local incident trigger endpoint
+- Deterministic investigation endpoint
+- Structured report retrieval endpoint
+- Human approval endpoint
+- GitHub issue preview endpoint, gated by safety review and dry-run behavior
 - Local CI log reader
 - Secret redactor
 - Demo repository search
 - Path traversal guard
-- Pytest coverage for core utilities and health endpoint
+- Pytest coverage for API routes, schemas, safety behavior, and deterministic tools
 
 It does not include AI agents, GitHub write actions, or a frontend.
 
@@ -55,13 +58,26 @@ Open:
 
 - `GET http://127.0.0.1:8000/health`
 - `POST http://127.0.0.1:8000/incidents/trigger`
+- `POST http://127.0.0.1:8000/incidents/inc_001/investigate`
 - `GET http://127.0.0.1:8000/incidents/inc_001/report`
+- `POST http://127.0.0.1:8000/incidents/inc_001/approve`
+- `POST http://127.0.0.1:8000/incidents/inc_001/github/issue`
 
 Example incident trigger body:
 
 ```json
 {
   "scenario": "broken_api_route"
+}
+```
+
+Safety reports expose the secret scan result explicitly:
+
+```json
+{
+  "secrets_detected": false,
+  "redactions_applied": 0,
+  "secret_scan_passed": true
 }
 ```
 
