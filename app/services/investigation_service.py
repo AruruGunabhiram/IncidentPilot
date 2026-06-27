@@ -1,19 +1,28 @@
-"""Deterministic incident investigation workflow (Phase 4).
+"""Deterministic incident investigation workflow (Phase 4 + Phase 5 persistence).
 
-No ADK, no LLM, no agents, no network. This service orchestrates the existing
-deterministic tools into a single grounded :class:`IncidentReport`::
+No ADK, no LLM, no agents, no network, no database. This service orchestrates
+the existing deterministic tools into a single grounded :class:`IncidentReport`
+and writes that report to the durable on-disk store::
 
     intake.json
       -> ci_log_reader   (path-guarded load, redact secrets, extract evidence)
       -> stack-frame grounding via repo_search / read_file_snippet (path-guarded)
       -> structured findings (log / code / root-cause / fix / safety)
       -> IncidentReport
+      -> redacted {incident_id}.json + {incident_id}.md on disk (Phase 5)
 
 Every claim in the report is tied to evidence a tool actually returned. Nothing
 is invented: a file path or line number is only cited after ``path_guard``
 confirms the file exists and the snippet is read back from it. Missing or weak
 evidence lowers confidence, raises ``needs_human_review``, and blocks the
 GitHub-issue path in the safety review.
+
+The single public entry point :func:`investigate_incident` accepts either an
+already-triggered incident id or a demo scenario name; a scenario that has not
+been triggered yet is auto-registered from its intake fixture, so the service is
+usable on its own. Both the JSON and Markdown it persists are redacted by the
+shared report writer / store before they reach disk, so no raw secret can be
+written even if upstream evidence missed one.
 """
 
 from __future__ import annotations
@@ -43,7 +52,7 @@ from app.services.errors import (
 )
 from app.storage import incident_store
 from app.tools.ci_log_reader import CILogResult, read_ci_log
-from app.tools.path_guard import PathGuardError, verify_file_exists
+from app.tools.path_guard import PathGuardError, resolve_safe_path, verify_file_exists
 from app.tools.redactor import REDACTION_MARKER, redact_secrets
 from app.tools.report_writer import build_markdown_report
 from app.tools.repo_search import read_file_snippet
@@ -94,19 +103,88 @@ def create_incident(scenario: str) -> IncidentTriggerResponse:
     )
 
 
-def investigate_incident(incident_id: str) -> IncidentReport:
-    """Run the deterministic investigation and store the resulting report.
+def investigate_incident(
+    scenario_or_incident_id: str,
+    *,
+    persist: bool = True,
+    reports_dir: Path | str | None = None,
+) -> IncidentReport:
+    """Run the deterministic investigation for an incident or demo scenario.
 
-    Raises :class:`IncidentNotFound` if the incident was never triggered.
+    ``scenario_or_incident_id`` may be either an already-triggered incident id
+    (e.g. ``"inc_001"``) or a demo scenario name (e.g. ``"broken_api_route"``).
+    A scenario that has not been triggered yet is auto-registered from its
+    ``demo/incidents/{scenario}/intake.json`` fixture, so the service is usable
+    on its own without a prior ``/trigger`` call.
+
+    The grounded report is stored in the in-memory control plane and, when
+    ``persist`` is true (the default), also written to disk as
+    ``{incident_id}.json`` and ``{incident_id}.md`` under the durable reports
+    store. The store validates the report through :class:`IncidentReport` and
+    redacts every string before writing, so no raw secret can reach disk.
+    ``reports_dir`` overrides the on-disk location (used by tests).
+
+    Returns the :class:`IncidentReport`. Raises :class:`IncidentNotFound` if the
+    argument is neither a known incident nor a demo scenario with an intake
+    fixture.
     """
-    state = incident_store.get_incident(incident_id)
-    if state is None:
-        raise IncidentNotFound(f"Unknown incident '{incident_id}'. Trigger it first.")
+    state = _resolve_incident_state(scenario_or_incident_id)
 
     incident_dir = INCIDENTS_DIR / state.scenario
     report = _investigate(state.incident_id, state.scenario, state.intake, incident_dir)
+
+    # In-memory control plane: the live source of truth during a request.
     incident_store.save_report(state.incident_id, report)
+
+    # Durable, redacted JSON + Markdown on disk (Phase 5, step 9).
+    if persist:
+        _persist_report(report, reports_dir=reports_dir)
+
     return report
+
+
+def _resolve_incident_state(scenario_or_incident_id: str) -> incident_store.IncidentState:
+    """Resolve an incident id or demo scenario name to an ``IncidentState``.
+
+    Deterministic resolution order:
+
+    1. An already-registered incident id is returned as-is.
+    2. Otherwise, if a demo scenario fixture exists for the argument, the
+       incident is auto-registered from it and returned.
+    3. Otherwise :class:`IncidentNotFound` is raised.
+
+    The argument is treated as untrusted: scenario lookup is path-guarded inside
+    :func:`_load_intake`, so a crafted value cannot escape ``demo/incidents/``.
+    """
+    state = incident_store.get_incident(scenario_or_incident_id)
+    if state is not None:
+        return state
+
+    try:
+        intake = _load_intake(scenario_or_incident_id)
+    except ScenarioNotFound as exc:
+        raise IncidentNotFound(
+            f"Unknown incident or scenario '{scenario_or_incident_id}'. Trigger "
+            f"the incident first, or pass a demo scenario that has a "
+            f"demo/incidents/<scenario>/intake.json fixture."
+        ) from exc
+
+    return incident_store.register_incident(scenario_or_incident_id, intake)
+
+
+def _persist_report(
+    report: IncidentReport, *, reports_dir: Path | str | None
+) -> tuple[Path, Path]:
+    """Write the redacted report to disk as JSON + Markdown; return both paths.
+
+    Delegates to the durable store, which re-validates the report and redacts
+    every string before writing. Returns ``(json_path, markdown_path)``.
+    """
+    json_path = incident_store.save_report_json(report, reports_dir=reports_dir)
+    markdown_path = incident_store.save_report_markdown(
+        report.incident_id, build_markdown_report(report), reports_dir=reports_dir
+    )
+    return json_path, markdown_path
 
 
 def record_github_approval(
@@ -228,7 +306,12 @@ def create_github_issue(
 
 
 def _load_intake(scenario: str) -> IncidentIntake:
-    intake_path = INCIDENTS_DIR / scenario / "intake.json"
+    # ``scenario`` is untrusted input: confine the intake path under the
+    # incidents root so a crafted value (e.g. "../../etc") cannot escape it.
+    try:
+        intake_path = resolve_safe_path(INCIDENTS_DIR, f"{scenario}/intake.json")
+    except PathGuardError as exc:
+        raise ScenarioNotFound(f"Unknown scenario '{scenario}'. {exc}") from exc
     if not intake_path.is_file():
         raise ScenarioNotFound(
             f"Unknown scenario '{scenario}'. No intake.json under demo/incidents/."
