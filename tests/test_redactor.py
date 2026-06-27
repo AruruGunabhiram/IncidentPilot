@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from app.tools.redactor import (
     REDACTION_MARKER,
     contains_secret,
@@ -9,6 +11,21 @@ GHP_TOKEN = "ghp_fakeTokenForDemoOnly1234567890"
 PAT_TOKEN = "github_pat_11ABCDEFG0fakeFineGrainedToken1234567890"
 SK_TOKEN = "sk-fakeOpenAIKey1234567890abcdefghij"
 DB_URL = "DATABASE_URL=postgres://user:password@example.com:5432/payments"
+
+# The exact fake secrets planted in the secret_in_logs fixture log.
+SECRET_IN_LOGS_CI_LOG = (
+    Path(__file__).resolve().parents[1]
+    / "demo"
+    / "incidents"
+    / "secret_in_logs"
+    / "ci.log"
+)
+RAW_FAKE_SECRETS = [
+    "ghp_fakeTokenForDemoOnly1234567890",
+    "fake.jwt.token",
+    "postgres://user:password@example.com:5432/payments",
+    "fake-api-key-12345",
+]
 
 
 def _types(result):
@@ -110,3 +127,20 @@ def test_clean_text_returns_same_text_and_zero_redactions():
     assert result.findings == []
     assert REDACTION_MARKER not in result.redacted_text
     assert contains_secret(text) is False
+
+
+# 11. The secret_in_logs fixture log redacts cleanly with no raw secret leak. ---
+def test_secret_in_logs_fixture_ci_log_redacts_without_leak():
+    ci_log = SECRET_IN_LOGS_CI_LOG.read_text(encoding="utf-8")
+    # Sanity: the fixture really does contain the raw fake secrets up front.
+    for secret in RAW_FAKE_SECRETS:
+        assert secret in ci_log, f"fixture missing planted secret: {secret}"
+
+    result = redact_text(ci_log)
+
+    # Every planted secret is removed; the typed marker is present instead.
+    assert result.redactions_applied >= len(RAW_FAKE_SECRETS)
+    assert REDACTION_MARKER in result.redacted_text
+    for secret in RAW_FAKE_SECRETS:
+        assert secret not in result.redacted_text
+    assert not contains_secret(result.redacted_text)

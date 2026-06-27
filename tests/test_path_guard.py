@@ -8,6 +8,11 @@ from app.tools.path_guard import (
     verify_directory_exists,
     verify_file_exists,
 )
+from app.tools.repo_search import read_file_snippet
+
+# The real demo repository root. Path traversal must never escape it to read a
+# system file such as /etc/passwd.
+DEMO_REPO_ROOT = Path(__file__).resolve().parents[1] / "demo" / "demo_repo"
 
 
 @pytest.fixture()
@@ -96,3 +101,43 @@ def test_root_itself_is_allowed_and_error_is_readable(root: Path):
     with pytest.raises(PathGuardError) as excinfo:
         resolve_safe_path(root, "../../etc/passwd")
     assert "traversal" in str(excinfo.value).lower()
+
+
+# Phase 7: path traversal is refused at resolution time, before any file read,
+# so nothing outside the allowed root (here, the demo repo) can ever be read.
+def test_path_traversal_is_rejected_before_file_read(root: Path, tmp_path: Path):
+    # Plant a real, readable file OUTSIDE the allowed root with known content.
+    # If the guard ever leaked, this content could surface; it must not.
+    outside = tmp_path / "secret_outside.txt"
+    outside.write_text("TOP_SECRET_DO_NOT_READ", encoding="utf-8")
+
+    traversal_paths = [
+        "../secret_outside.txt",      # one level up to the planted secret
+        "../../etc/passwd",           # classic deep traversal
+        "../../../../etc/passwd",     # deeper traversal
+        "/etc/passwd",                # absolute path outside the root
+    ]
+
+    for bad in traversal_paths:
+        # Resolution refuses the path...
+        with pytest.raises(PathGuardError):
+            resolve_safe_path(root, bad)
+        # ...and so do both file-access helpers, which resolve *before* reading.
+        with pytest.raises(PathGuardError):
+            verify_file_exists(root, bad)
+        with pytest.raises(PathGuardError):
+            read_file_snippet(root, bad, 1, 1)
+
+    # The planted outside file really exists and is readable, so the guard — not
+    # a missing file — is what blocked access.
+    assert outside.read_text(encoding="utf-8") == "TOP_SECRET_DO_NOT_READ"
+
+
+def test_path_traversal_cannot_escape_demo_repo_root():
+    """The same guard protects the real demo repo root used by the pipeline."""
+    assert DEMO_REPO_ROOT.is_dir()
+    for bad in ("../../etc/passwd", "../../../../etc/passwd", "/etc/passwd"):
+        with pytest.raises(PathGuardError):
+            resolve_safe_path(DEMO_REPO_ROOT, bad)
+        with pytest.raises(PathGuardError):
+            read_file_snippet(DEMO_REPO_ROOT, bad, 1, 1)
