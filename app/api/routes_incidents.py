@@ -32,11 +32,16 @@ def approve_incident(
     incident_id: str,
     decision: ApprovalDecision | None = Body(default=None),
 ) -> ApprovalResponse:
-    """Record a human approval for ``create_github_issue`` (empty body = approve)."""
+    """Record a human approval decision for an action (empty body = approve).
+
+    The action defaults to ``create_github_issue`` and is enforced action-specific
+    by the service layer, so approving one action never authorizes another.
+    """
     decision = decision or ApprovalDecision()
     return investigation_service.record_github_approval(
         incident_id,
         approved=decision.approved,
         approved_by=decision.approved_by,
         note=decision.note,
+        action=decision.action,
     )

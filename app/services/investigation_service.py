@@ -32,7 +32,12 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.schemas.approval import ApprovalRecord, ApprovalResponse, GitHubIssueOptions, GitHubIssueResult
+from app.schemas.approval import (
+    ApprovalAction,
+    ApprovalResponse,
+    GitHubIssueOptions,
+    GitHubIssueResult,
+)
 from app.schemas.findings import (
     CodeFinding,
     EvidenceItem,
@@ -44,6 +49,7 @@ from app.schemas.incident import IncidentIntake, IncidentTriggerResponse
 from app.schemas.report import IncidentReport
 from app.schemas.safety import SafetyReview
 from app.services import safety_gate
+from app.services.approval_service import approval_service
 from app.services.errors import (
     IncidentNotFound,
     ReportNotReady,
@@ -187,43 +193,43 @@ def _persist_report(
 
 
 def record_github_approval(
-    incident_id: str, approved: bool, approved_by: str, note: str | None
+    incident_id: str,
+    approved: bool,
+    approved_by: str,
+    note: str | None,
+    action: ApprovalAction = "create_github_issue",
 ) -> ApprovalResponse:
-    """Record a human approval decision for ``create_github_issue``.
+    """Record a human approval/rejection decision for ``action``.
 
-    Requires an investigated incident. Raises :class:`IncidentNotFound` /
-    :class:`ReportNotReady` otherwise.
+    Delegates to the authoritative :class:`ApprovalService`, which validates the
+    action, requires an investigated incident, and persists the decision against
+    that action only. Raises :class:`IncidentNotFound` / :class:`ReportNotReady`
+    / :class:`InvalidAction` from the service as appropriate.
     """
-    state = incident_store.get_incident(incident_id)
-    if state is None:
-        raise IncidentNotFound(f"Unknown incident '{incident_id}'. Trigger it first.")
-    if state.report is None:
-        raise ReportNotReady("Investigate the incident before recording an approval.")
-
-    record = ApprovalRecord(
-        incident_id=incident_id,
-        action="create_github_issue",
-        approved=approved,
-        approved_by=approved_by,
-        note=note,
-    )
-    incident_store.record_approval(incident_id, record)
-
     if approved:
-        # Reflect the human decision on the stored report.
-        state.report.status = "approved"
-        state.report.updated_at = datetime.now(timezone.utc)
+        record = approval_service.approve_action(
+            incident_id, action, approved_by=approved_by, note=note
+        )
+        message = (
+            "Approval recorded; GitHub issue creation is now unlocked (still dry-run)."
+        )
+        # Reflect the human decision on the stored report for the demo UI.
+        state = incident_store.get_incident(incident_id)
+        if state is not None and state.report is not None:
+            state.report.status = "approved"
+            state.report.updated_at = datetime.now(timezone.utc)
+    else:
+        record = approval_service.reject_action(
+            incident_id, action, approved_by=approved_by, note=note
+        )
+        message = "Decision recorded as rejected; GitHub issue creation stays blocked."
 
-    message = (
-        "Approval recorded; GitHub issue creation is now unlocked (still dry-run)."
-        if approved
-        else "Decision recorded as NOT approved; GitHub issue creation stays blocked."
-    )
     return ApprovalResponse(
         incident_id=incident_id,
-        action="create_github_issue",
-        approved=approved,
-        approved_by=approved_by,
+        action=record.action,
+        status=record.status,
+        approved=record.approved,
+        approved_by=record.approved_by,
         message=message,
     )
 
@@ -250,11 +256,16 @@ def create_github_issue(
     if report is None:
         raise ReportNotReady("Investigate the incident before creating a GitHub issue.")
 
-    # Deterministic, authoritative gate. Raises SafetyBlocked (unsafe report) or
-    # ApprovalRequired (no human approval on file) BEFORE any issue payload is
-    # built or any GitHub client could be touched.
-    approval = incident_store.get_approval(incident_id, "create_github_issue")
-    safety_gate.assert_github_issue_allowed(report, approval)
+    # Two-stage, authoritative gate, enforced in the service layer BEFORE any
+    # issue payload is built or any GitHub client could be touched:
+    #   1. Deterministic safety verdict (secrets, unverified paths, confidence
+    #      threshold). A failed safety review or low confidence blocks here,
+    #      regardless of any approval on file -> SafetyBlocked.
+    #   2. Action-specific human approval. No approval (pending) -> ApprovalRequired;
+    #      an explicit rejection -> ApprovalRejected.
+    # Safety is checked first so an approval can never override an unsafe report.
+    safety_gate.assert_report_safe_for_issue(report)
+    approval_service.require_approved(incident_id, "create_github_issue")
 
     title, body, labels = _build_issue_preview(report, extra_labels=options.labels)
 

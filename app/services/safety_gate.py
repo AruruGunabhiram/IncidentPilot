@@ -209,6 +209,22 @@ def github_issue_block_reasons(report: IncidentReport) -> list[str]:
     return reasons
 
 
+def assert_report_safe_for_issue(report: IncidentReport) -> None:
+    """Raise :class:`SafetyBlocked` unless ``report`` passes every safety check.
+
+    This is the safety half of the GitHub-issue gate, with no notion of human
+    approval. It is called *before* the approval check so an unsafe report (failed
+    safety review, low confidence, secret-bearing source, unverified path) is
+    blocked regardless of any approval on file. The message is built from the
+    re-derived, redacted blocked reasons and never leaks a raw secret.
+    """
+    reasons = github_issue_block_reasons(report)
+    if reasons:
+        raise SafetyBlocked(
+            "Safety review blocked GitHub issue creation: " + "; ".join(reasons) + "."
+        )
+
+
 def assert_github_issue_allowed(report: IncidentReport, approval) -> None:
     """Raise unless a GitHub issue may be created for ``report``.
 

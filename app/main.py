@@ -19,8 +19,15 @@ app = FastAPI(title="IncidentPilot", version="0.1.0")
 
 @app.exception_handler(IncidentError)
 async def handle_incident_error(request: Request, exc: IncidentError) -> JSONResponse:
-    """Map control-plane domain errors to their HTTP status + detail."""
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    """Map control-plane domain errors to their HTTP status + detail.
+
+    Includes the stable ``reason`` code when the error carries one, so a blocked
+    response is explicit (e.g. ``approval_required``) without parsing prose.
+    """
+    content: dict[str, str] = {"detail": exc.detail}
+    if exc.reason is not None:
+        content["reason"] = exc.reason
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 
 app.include_router(health_router)

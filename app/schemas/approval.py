@@ -11,9 +11,21 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ApprovalAction = Literal["create_github_issue", "create_pr", "post_comment"]
+
+# The set of actions a human may approve. Used by the service layer to reject an
+# unknown action before any state is touched (defense in depth on top of the
+# ``ApprovalAction`` Literal that FastAPI enforces at the API boundary).
+APPROVAL_ACTIONS: frozenset[str] = frozenset(
+    {"create_github_issue", "create_pr", "post_comment"}
+)
+
+# Lifecycle of one action's approval. Default is always ``pending``: an action is
+# blocked until a human explicitly approves it, and an explicit ``rejected`` is a
+# distinct, sticky decision (not the same as "not yet decided").
+ApprovalStatus = Literal["pending", "approved", "rejected"]
 
 
 class ApprovalRequest(BaseModel):
@@ -55,22 +67,46 @@ class ApprovalDecision(BaseModel):
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
+    action: ApprovalAction = "create_github_issue"
     approved: bool = True
     approved_by: str = "demo-operator"
     note: str | None = None
 
 
 class ApprovalRecord(BaseModel):
-    """A stored approval decision for one incident + action."""
+    """A stored, auditable approval decision for one incident + action.
+
+    ``status`` is the rich lifecycle state (``pending`` / ``approved`` /
+    ``rejected``); ``approved`` is kept as a legacy convenience boolean and is
+    always reconciled to ``status == "approved"`` by the validator below, so the
+    two can never disagree.
+    """
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
     incident_id: str
     action: ApprovalAction = "create_github_issue"
+    status: ApprovalStatus = "pending"
     approved: bool = False
     approved_by: str = "demo-operator"
     note: str | None = None
     recorded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @model_validator(mode="after")
+    def _reconcile_status(self) -> "ApprovalRecord":
+        """Keep ``status`` and the legacy ``approved`` boolean consistent.
+
+        ``approved`` is treated as authoritative for legacy callers that only set
+        the boolean: ``approved=True`` implies ``status="approved"``; a non-True
+        ``approved`` can never leave ``status`` claiming ``"approved"``. Explicit
+        ``status="rejected"`` (with ``approved=False``) is preserved.
+        """
+        if self.approved and self.status != "approved":
+            object.__setattr__(self, "status", "approved")
+        elif not self.approved and self.status == "approved":
+            object.__setattr__(self, "status", "pending")
+        return self
 
 
 class ApprovalResponse(BaseModel):
@@ -80,6 +116,7 @@ class ApprovalResponse(BaseModel):
 
     incident_id: str
     action: ApprovalAction
+    status: ApprovalStatus
     approved: bool
     approved_by: str
     message: str

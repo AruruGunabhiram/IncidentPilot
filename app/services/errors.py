@@ -10,9 +10,15 @@ from __future__ import annotations
 
 
 class IncidentError(Exception):
-    """Base class for control-plane errors. Carries an HTTP status + detail."""
+    """Base class for control-plane errors. Carries an HTTP status + detail.
+
+    ``reason`` is a stable, machine-readable code (e.g. ``approval_required``)
+    that makes a blocked response explicit for clients and tests, independent of
+    the human-readable ``detail`` wording.
+    """
 
     status_code: int = 400
+    reason: str | None = None
 
     def __init__(self, detail: str) -> None:
         self.detail = detail
@@ -41,9 +47,25 @@ class SafetyBlocked(IncidentError):
     """The safety review does not permit the requested external action."""
 
     status_code = 403
+    reason = "safety_review_failed"
 
 
 class ApprovalRequired(IncidentError):
-    """A required human approval is missing for the requested action."""
+    """A required human approval is missing (still ``pending``) for the action."""
 
     status_code = 403
+    reason = "approval_required"
+
+
+class ApprovalRejected(IncidentError):
+    """A human explicitly rejected the requested action; it stays blocked."""
+
+    status_code = 403
+    reason = "approval_rejected"
+
+
+class InvalidAction(IncidentError):
+    """The requested approval action is not a recognized, approvable action."""
+
+    status_code = 422
+    reason = "invalid_action"
