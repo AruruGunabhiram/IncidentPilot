@@ -1,14 +1,20 @@
-from fastapi import APIRouter, HTTPException
+"""Report retrieval route."""
+
+from fastapi import APIRouter
 
 from app.schemas.report import IncidentReport
-from app.storage.incident_store import get_report
+from app.services.errors import IncidentNotFound, ReportNotReady
+from app.storage import incident_store
 
 router = APIRouter(prefix="/incidents", tags=["reports"])
 
 
 @router.get("/{incident_id}/report", response_model=IncidentReport)
 def read_incident_report(incident_id: str) -> IncidentReport:
-    report = get_report(incident_id)
-    if report is None:
-        raise HTTPException(status_code=404, detail="Incident report not found")
-    return report
+    """Return the stored, grounded incident report (after /investigate)."""
+    state = incident_store.get_incident(incident_id)
+    if state is None:
+        raise IncidentNotFound(f"Unknown incident '{incident_id}'. Trigger it first.")
+    if state.report is None:
+        raise ReportNotReady("Investigate the incident before fetching its report.")
+    return state.report
