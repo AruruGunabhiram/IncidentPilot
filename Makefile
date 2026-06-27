@@ -1,4 +1,4 @@
-.PHONY: setup dev test clean
+.PHONY: setup dev test demo clean
 
 setup:
 	python3 -m venv .venv
@@ -11,7 +11,11 @@ dev:
 test:
 	.venv/bin/pytest
 
+demo:
+	.venv/bin/python scripts/run_demo.py
+
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +
 	find . -type d -name ".pytest_cache" -prune -exec rm -rf {} +
 	rm -rf reports
+	find app/storage/reports -type f ! -name '.gitkeep' -delete
