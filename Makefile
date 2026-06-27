@@ -1,18 +1,23 @@
 .PHONY: setup dev test demo clean
 
+PYTHON ?= python3
+VENV ?= .venv
+VENV_PYTHON ?= $(VENV)/bin/python
+UVICORN ?= $(PYTHON) -m uvicorn
+
 setup:
-	python3 -m venv .venv
-	.venv/bin/pip install --upgrade pip
-	.venv/bin/pip install -r requirements.txt
+	$(PYTHON) -m venv $(VENV)
+	$(VENV_PYTHON) -m pip install --upgrade pip
+	$(VENV_PYTHON) -m pip install -r requirements.txt
 
 dev:
-	.venv/bin/uvicorn app.main:app --reload
+	$(UVICORN) app.main:app --reload
 
 test:
-	.venv/bin/pytest
+	$(PYTHON) -m pytest
 
 demo:
-	.venv/bin/python scripts/run_demo.py
+	$(PYTHON) scripts/run_demo.py
 
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +
