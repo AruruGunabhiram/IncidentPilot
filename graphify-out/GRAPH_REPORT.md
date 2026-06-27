@@ -1,7 +1,7 @@
-# Graph Report - IncidentPilot  (2026-06-26)
+# Graph Report - IncidentPilot  (2026-06-27)
 
 ## Corpus Check
-- 49 files · ~18,453 words
+- 49 files · ~18,603 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `d6b88a92`
+- Built from commit: `0c7102e2`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
