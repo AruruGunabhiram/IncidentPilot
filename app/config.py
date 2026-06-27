@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     github_repo: str = ""
     github_dry_run: bool = True
     gemini_api_key: str = ""
+    # Optional agent layer. Default OFF: the deterministic investigation service
+    # stays the source of truth and default behavior. When enabled, agent output
+    # is still re-validated and grounded, and falls back to deterministic if it
+    # is invalid or weaker. This flag never enables any external write action.
+    agent_mode: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
