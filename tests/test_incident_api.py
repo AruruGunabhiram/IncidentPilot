@@ -11,8 +11,8 @@ Exercises the FastAPI control plane end-to-end with FastAPI's ``TestClient``:
 
 These tests are fully deterministic and hermetic:
 
-* No real GitHub call is ever made (the endpoint never writes in this build, and
-  GitHub is left unconfigured so the path stays dry-run).
+* No real GitHub call is ever made. Route-level real creation is covered with a
+  mocked GitHub client and fake test-repository settings.
 * No network, ADK, or LLM dependency.
 * The in-memory incident store is module-global, so each test resets it first
   via the ``client`` fixture. No files are written by the store, so no tmp_path
@@ -29,7 +29,10 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import Settings
+from app.dependencies import settings_dependency
 from app.main import app
+from app.tools.github_client import CreatedIssue
 from app.storage import incident_store
 
 # Fake secrets seeded into demo/incidents/secret_in_logs/ci.log. None of these
@@ -254,6 +257,70 @@ def test_github_issue_dry_run_preview(client: TestClient) -> None:
     blob = json.dumps(issue)
     for secret in RAW_FAKE_SECRETS:
         assert secret not in blob
+
+
+def test_github_issue_route_real_create_uses_mocked_client(monkeypatch) -> None:
+    """Route can return a real-created issue shape without real GitHub access."""
+
+    class FakeGitHubClient:
+        calls: list[dict] = []
+
+        def __init__(self, token: str, owner: str, repo: str) -> None:
+            assert token == "ghp_routeTestToken_DO_NOT_LEAK_0001"
+            assert owner == "demo-owner"
+            assert repo == "demo-repo"
+
+        def create_issue(
+            self, title: str, body: str, labels: list[str] | None = None
+        ) -> CreatedIssue:
+            self.calls.append({"title": title, "body": body, "labels": labels})
+            return CreatedIssue(
+                number=777,
+                url="https://github.com/demo-owner/demo-repo/issues/777",
+            )
+
+    def fake_settings() -> Settings:
+        return Settings(
+            github_token="ghp_routeTestToken_DO_NOT_LEAK_0001",
+            github_owner="demo-owner",
+            github_repo="demo-repo",
+            github_dry_run=False,
+        )
+
+    incident_store.reset_store()
+    monkeypatch.setattr(
+        "app.services.github_issue_service.GitHubClient", FakeGitHubClient
+    )
+    app.dependency_overrides[settings_dependency] = fake_settings
+    try:
+        local = TestClient(app)
+        local.post("/incidents/trigger", json={"scenario": "broken_api_route"})
+        local.post("/incidents/inc_001/investigate")
+        local.post("/incidents/inc_001/approve")
+
+        response = local.post(
+            "/incidents/inc_001/github/issue", json={"dry_run": False}
+        )
+    finally:
+        app.dependency_overrides.pop(settings_dependency, None)
+        incident_store.reset_store()
+
+    assert response.status_code == 200
+    issue = response.json()
+    assert issue["created"] is True
+    assert issue["dry_run"] is False
+    assert issue["issue_url"] == "https://github.com/demo-owner/demo-repo/issues/777"
+    assert issue["issue_number"] == 777
+    assert (
+        issue["title"]
+        == "IncidentPilot: POST /payments fails due to unchecked missing user"
+    )
+    assert "body_preview" in issue
+    assert FakeGitHubClient.calls
+    assert FakeGitHubClient.calls[0]["labels"] == ["incident", "severity:sev2"]
+
+    blob = json.dumps(issue)
+    assert "ghp_routeTestToken_DO_NOT_LEAK_0001" not in blob
 
 
 # ===========================================================================

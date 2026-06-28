@@ -61,3 +61,35 @@ found no secrets:
   }
 }
 ```
+
+## Approve GitHub Issue Creation
+
+```bash
+curl -X POST http://127.0.0.1:8000/incidents/inc_001/approve \
+  -H "Content-Type: application/json" \
+  -d '{"action":"create_github_issue","approved":true,"approved_by":"demo-operator"}'
+```
+
+## Show Dry-Run Issue Preview
+
+```bash
+curl -X POST http://127.0.0.1:8000/incidents/inc_001/github/issue \
+  -H "Content-Type: application/json" \
+  -d '{"dry_run":true}'
+```
+
+Expected shape:
+
+```json
+{
+  "created": false,
+  "dry_run": true,
+  "title": "IncidentPilot: POST /payments fails due to unchecked missing user",
+  "body_preview": "...",
+  "issue_url": null,
+  "issue_number": null
+}
+```
+
+For real issue creation, use only a test/demo repository and intentionally set
+`GITHUB_DRY_RUN=false`, `GITHUB_TOKEN`, `GITHUB_OWNER`, and `GITHUB_REPO`.

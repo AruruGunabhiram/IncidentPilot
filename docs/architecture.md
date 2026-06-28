@@ -14,12 +14,18 @@ IncidentPilot is organized as a small FastAPI backend with explicit boundaries f
 
 ## Safety Defaults
 
-- GitHub write actions are not implemented.
 - `GITHUB_DRY_RUN` defaults to `true`.
+- GitHub issue creation is the only external write path.
+- Real issue creation requires a clean safety review, explicit human approval,
+  complete GitHub configuration, and `GITHUB_DRY_RUN=false`.
+- Missing GitHub configuration falls back to a dry-run preview with
+  `body_preview`, `issue_url`, and `issue_number` fields.
 - Local secrets belong only in `.env`, which is ignored by Git.
 - CI log output is redacted before returning content.
 - File access is guarded to stay under an allowed root.
 
 ## Later Design
 
-The service layer is the intended integration point for future ADK multi-agent orchestration. Agents should call deterministic tools through clear interfaces and return structured report models.
+The next phase is evaluation and demo polish: results, README, demo script,
+architecture notes, screenshots, and demo video. Additional GitHub automation,
+pull requests, branches, or repository writes are out of scope.

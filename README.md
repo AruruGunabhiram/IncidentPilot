@@ -14,14 +14,16 @@ This repository currently includes only the local backend foundation:
 - Deterministic investigation endpoint
 - Structured report retrieval endpoint
 - Human approval endpoint
-- GitHub issue preview endpoint, gated by safety review and dry-run behavior
+- GitHub issue endpoint, gated by safety review, human approval, and dry-run by default
 - Local CI log reader
 - Secret redactor
 - Demo repository search
 - Path traversal guard
 - Pytest coverage for API routes, schemas, safety behavior, and deterministic tools
 
-It does not include AI agents, GitHub write actions, or a frontend.
+It does not include a frontend. GitHub issue creation is the only external
+write path, and it is disabled unless safety passes, a human approves, GitHub is
+fully configured, and `GITHUB_DRY_RUN=false`.
 
 ## Setup
 
@@ -81,6 +83,22 @@ Safety reports expose the secret scan result explicitly:
 }
 ```
 
+The GitHub issue endpoint returns a dry-run preview by default:
+
+```json
+{
+  "created": false,
+  "dry_run": true,
+  "title": "IncidentPilot: POST /payments fails due to unchecked missing user",
+  "body_preview": "...",
+  "issue_url": null,
+  "issue_number": null
+}
+```
+
+For a real issue, use only a test/demo repository and set `GITHUB_DRY_RUN=false`
+with `GITHUB_TOKEN`, `GITHUB_OWNER`, and `GITHUB_REPO`.
+
 ## Run Tests
 
 ```bash
@@ -118,7 +136,7 @@ Graphify is not part of the runtime incident investigation pipeline. IncidentPil
 
 - ADK multi-agent orchestration
 - GitHub read integration
-- GitHub write actions behind explicit dry-run controls
+- Evaluation results and demo polish
 - Richer incident report generation
 - Persistent storage
 - Frontend workflow for incident review

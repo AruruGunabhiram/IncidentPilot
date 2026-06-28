@@ -1,9 +1,9 @@
 """Human approval and GitHub issue request/response schemas.
 
-No external write action is performed without an explicit, approved decision;
-GitHub issue handling defaults to a dry run and only ever returns a preview in
-this build. These models are the API contracts for the ``/approve`` and
-``/github/issue`` endpoints.
+No external write action is performed without an explicit, approved decision.
+GitHub issue handling defaults to a dry run; real creation requires safety,
+approval, complete configuration, and ``GITHUB_DRY_RUN=false``. These models are
+the API contracts for the ``/approve`` and ``/github/issue`` endpoints.
 """
 
 from __future__ import annotations
