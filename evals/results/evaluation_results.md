@@ -1,6 +1,6 @@
 # IncidentPilot — Evaluation Results
 
-_Generated: 2026-06-28 06:38:19 UTC_
+_Generated: 2026-06-28 07:27:04 UTC_
 
 **Summary:** 5 cases run, 4 passed, 0 failed, 1 expected safe failure passed
 

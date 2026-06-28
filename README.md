@@ -88,6 +88,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+After `make setup`, the other `make` targets (`dev`, `demo`, `eval`, `test`) use this
+`.venv` automatically — there is no need to activate it yourself. They fall back to
+your system Python only if `.venv` is absent.
+
 Create your local environment file from the template (never commit `.env`):
 
 ```bash

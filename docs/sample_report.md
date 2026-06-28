@@ -5,7 +5,8 @@ from the `broken_api_route` demo fixture (`demo/incidents/broken_api_route/`). I
 rendered form of the report the API returns from `POST /incidents/inc_001/investigate` and
 persists to `app/storage/reports/inc_001.{json,md}`.
 
-Reproduce it exactly with:
+This is a representative sample based on the deterministic `broken_api_route` demo.
+Running `make demo` generates the current report under `app/storage/reports/`.
 
 ```bash
 make demo            # or: python scripts/run_demo.py --scenario broken_api_route
