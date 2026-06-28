@@ -141,11 +141,12 @@ def test_github_issue_dry_run_preview_after_approval(client: TestClient) -> None
     assert approve.json()["approved"] is True
 
     issue = client.post("/incidents/inc_001/github/issue").json()
-    assert issue["created"] is False  # never a real write in this phase
+    assert issue["created"] is False
     assert issue["dry_run"] is True
-    assert issue["mode"] == "preview"
-    assert issue["title"].startswith("[IncidentPilot]")
-    assert issue["body"]  # redacted markdown preview
+    assert issue["title"].startswith("IncidentPilot:")
+    assert issue["body_preview"]  # redacted markdown preview
+    assert issue["issue_url"] is None
+    assert issue["issue_number"] is None
 
 
 # --- secret_in_logs: redaction + hard safety block --------------------------

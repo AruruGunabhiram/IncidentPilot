@@ -236,12 +236,12 @@ def test_github_issue_dry_run_preview(client: TestClient) -> None:
     # Does not create a real issue.
     assert issue["created"] is False
     assert issue["dry_run"] is True
-    assert issue["mode"] == "preview"
-    assert issue["url"] is None
+    assert issue["issue_url"] is None
+    assert issue["issue_number"] is None
 
     # Returns a title/body preview.
-    assert issue["title"].startswith("[IncidentPilot]")
-    body = issue["body"]
+    assert issue["title"].startswith("IncidentPilot:")
+    body = issue["body_preview"]
     assert body
 
     # Body preview includes evidence and the fix plan.

@@ -55,6 +55,7 @@ from app.services.errors import (
     ReportNotReady,
     ScenarioNotFound,
 )
+from app.services.github_issue_service import build_issue_body, build_issue_title
 from app.storage import incident_store
 from app.tools.ci_log_reader import CILogResult, read_ci_log
 from app.tools.path_guard import PathGuardError, resolve_safe_path, verify_file_exists
@@ -278,11 +279,11 @@ def create_github_issue(
             incident_id=incident_id,
             created=False,
             dry_run=True,
-            mode="preview",
             title=title,
-            body=body,
+            body_preview=body,
             labels=labels,
-            url=None,
+            issue_url=None,
+            issue_number=None,
             message="Dry run: previewed the issue only. No GitHub write was performed.",
         )
 
@@ -290,11 +291,11 @@ def create_github_issue(
         incident_id=incident_id,
         created=False,
         dry_run=False,
-        mode="not_implemented",
         title=title,
-        body=body,
+        body_preview=body,
         labels=labels,
-        url=None,
+        issue_url=None,
+        issue_number=None,
         message=(
             "Live GitHub issue creation is not enabled in this build; "
             "returned a redacted preview instead."
@@ -1056,8 +1057,8 @@ def _report_blocked_reasons(
 def _build_issue_preview(
     report: IncidentReport, *, extra_labels: list[str]
 ) -> tuple[str, str, list[str]]:
-    title = f"[IncidentPilot] {report.title}"
-    body = build_markdown_report(report)  # redacted Markdown
+    title = build_issue_title(report)
+    body = build_issue_body(report)
     labels = ["incident", f"severity:{report.severity.lower()}"]
     for label in extra_labels:
         if label not in labels:

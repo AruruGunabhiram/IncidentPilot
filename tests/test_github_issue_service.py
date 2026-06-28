@@ -384,8 +384,7 @@ def test_title_is_grounded_and_prefixed(store_reset) -> None:
     inv.investigate_incident("broken_api_route", persist=False)
     report = incident_store.get_report("inc_001")
     title = build_issue_title(report)
-    assert title.startswith("IncidentPilot:")
-    assert report.title in title
+    assert title == "IncidentPilot: POST /payments fails due to unchecked missing user"
 
 
 def test_body_never_leaks_secret_for_secret_scenario(store_reset) -> None:

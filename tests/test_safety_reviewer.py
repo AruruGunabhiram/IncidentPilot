@@ -420,8 +420,9 @@ def test_create_github_issue_never_writes_even_when_configured_and_not_dry_run()
     )
     # No network write occurs in this build: creation is "not_implemented".
     assert result.created is False
-    assert result.url is None
-    assert result.mode == "not_implemented"
+    assert result.dry_run is False
+    assert result.issue_url is None
+    assert result.issue_number is None
 
 
 def test_create_github_issue_dry_run_preview_after_approval():
@@ -433,8 +434,7 @@ def test_create_github_issue_dry_run_preview_after_approval():
     )
     assert result.created is False
     assert result.dry_run is True
-    assert result.mode == "preview"
-    assert result.title.startswith("[IncidentPilot]")
+    assert result.title.startswith("IncidentPilot:")
 
 
 # ---------------------------------------------------------------------------

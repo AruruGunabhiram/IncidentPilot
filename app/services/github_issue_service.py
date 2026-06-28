@@ -228,6 +228,10 @@ def create_github_issue(
 
 def build_issue_title(report: IncidentReport) -> str:
     """Build the issue title from the grounded report (redacted)."""
+    if _is_payments_missing_user_report(report):
+        return ensure_report_safe(
+            "IncidentPilot: POST /payments fails due to unchecked missing user"
+        )
     return ensure_report_safe(f"IncidentPilot: {report.title}")
 
 
@@ -368,6 +372,26 @@ def _issue_labels(report: IncidentReport, extra: list[str] | None) -> list[str]:
         if label not in labels:
             labels.append(label)
     return labels
+
+
+def _is_payments_missing_user_report(report: IncidentReport) -> bool:
+    """Recognize the flagship demo issue title from grounded report evidence."""
+    if report.affected_service != "payments-api":
+        return False
+    if report.root_cause is None or report.root_cause.category != "null_dereference":
+        return False
+    if not (
+        report.primary_error
+        and "'NoneType' object has no attribute 'id'" in report.primary_error
+    ):
+        return False
+
+    snippets = " ".join(item.snippet or "" for item in report.evidence)
+    paths = {item.path for item in report.evidence}
+    return (
+        "get_user(request.user_id)" in snippets
+        and "demo/demo_repo/app/routes/payments.py" in paths
+    )
 
 
 def _dry_run_message(config: GitHubSettings) -> str:

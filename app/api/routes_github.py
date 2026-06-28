@@ -1,17 +1,12 @@
-"""GitHub issue route — approval- and safety-gated, dry-run by default.
-
-This endpoint never writes to GitHub in this phase. It enforces every gate
-(incident exists, report exists, safety review allows it, human approval on
-file) and then returns a redacted preview of the issue it *would* file. The
-actual network write is intentionally not implemented.
-"""
+"""GitHub issue route — approval- and safety-gated, dry-run by default."""
 
 from fastapi import APIRouter, Body, Depends
 
 from app.config import Settings
 from app.dependencies import settings_dependency
 from app.schemas.approval import GitHubIssueOptions, GitHubIssueResult
-from app.services import investigation_service
+from app.services.github_issue_service import create_github_issue as create_issue
+from app.services.github_issue_service import github_settings_from_env
 
 router = APIRouter(prefix="/incidents", tags=["github"])
 
@@ -22,14 +17,38 @@ def create_github_issue(
     options: GitHubIssueOptions | None = Body(default=None),
     settings: Settings = Depends(settings_dependency),
 ) -> GitHubIssueResult:
-    """Preview (never create) the GitHub issue for an approved, grounded report."""
+    """Preview or create the GitHub issue for an approved, grounded report."""
     options = options or GitHubIssueOptions()
-    github_configured = bool(
-        settings.github_token and settings.github_owner and settings.github_repo
+    config = github_settings_from_env(
+        {
+            "GITHUB_TOKEN": settings.github_token,
+            "GITHUB_OWNER": settings.github_owner,
+            "GITHUB_REPO": settings.github_repo,
+            "GITHUB_DRY_RUN": str(settings.github_dry_run),
+        }
     )
-    return investigation_service.create_github_issue(
+    if options.dry_run is True:
+        config = type(config)(
+            token=config.token, owner=config.owner, repo=config.repo, dry_run=True
+        )
+    elif options.dry_run is False:
+        config = type(config)(
+            token=config.token, owner=config.owner, repo=config.repo, dry_run=False
+        )
+
+    outcome = create_issue(
         incident_id,
-        options,
-        github_configured=github_configured,
-        env_dry_run=settings.github_dry_run,
+        config=config,
+        labels=options.labels,
+    )
+    return GitHubIssueResult(
+        incident_id=outcome.incident_id,
+        created=outcome.created,
+        dry_run=outcome.dry_run,
+        title=outcome.title,
+        body_preview=outcome.body_preview,
+        labels=outcome.labels,
+        issue_url=outcome.url,
+        issue_number=outcome.number,
+        message=outcome.message,
     )

@@ -124,10 +124,10 @@ def test_dry_run_returns_preview_only(client: TestClient) -> None:
     issue = client.post("/incidents/inc_001/github/issue").json()
     assert issue["created"] is False
     assert issue["dry_run"] is True
-    assert issue["mode"] == "preview"
-    assert issue["title"].startswith("[IncidentPilot]")
-    assert issue["body"]
-    assert issue["url"] is None
+    assert issue["title"].startswith("IncidentPilot:")
+    assert issue["body_preview"]
+    assert issue["issue_url"] is None
+    assert issue["issue_number"] is None
 
 
 # --- Rule 6: approval is action-specific -----------------------------------
@@ -244,8 +244,8 @@ def test_reject_then_reapprove_unlocks(store_reset) -> None:
     result = svc.create_github_issue(
         "inc_001", GitHubIssueOptions(), github_configured=True, env_dry_run=True
     )
-    assert result.mode == "preview"
     assert result.created is False
+    assert result.body_preview
 
 
 # --- Approve endpoint records an auditable, action-specific approval --------
@@ -320,5 +320,5 @@ def test_no_github_network_write_even_when_approved(store_reset, monkeypatch) ->
     # Approved, but still a preview only — never a real GitHub write.
     assert result.created is False
     assert result.dry_run is True
-    assert result.mode == "preview"
-    assert result.url is None
+    assert result.issue_url is None
+    assert result.issue_number is None

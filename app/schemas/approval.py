@@ -131,16 +131,16 @@ class GitHubIssueOptions(BaseModel):
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    dry_run: bool = True
+    dry_run: bool | None = None
     labels: list[str] = Field(default_factory=list)
 
 
 class GitHubIssueResult(BaseModel):
     """Response for ``POST /incidents/{id}/github/issue``.
 
-    In this phase ``created`` is always ``False``: the endpoint returns a
-    redacted preview of the issue it *would* file, never performing a network
-    write.
+    ``body_preview`` is the redacted Markdown that is previewed in dry-run mode
+    and submitted in real mode. Real creation only occurs after safety approval,
+    human approval, complete GitHub configuration, and ``GITHUB_DRY_RUN=false``.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -148,9 +148,9 @@ class GitHubIssueResult(BaseModel):
     incident_id: str
     created: bool
     dry_run: bool
-    mode: Literal["preview", "not_implemented"]
     title: str
-    body: str
+    body_preview: str
     labels: list[str] = Field(default_factory=list)
-    url: str | None = None
+    issue_url: str | None = None
+    issue_number: int | None = None
     message: str
