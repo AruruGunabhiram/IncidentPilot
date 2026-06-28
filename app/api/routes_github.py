@@ -31,10 +31,6 @@ def create_github_issue(
         config = type(config)(
             token=config.token, owner=config.owner, repo=config.repo, dry_run=True
         )
-    elif options.dry_run is False:
-        config = type(config)(
-            token=config.token, owner=config.owner, repo=config.repo, dry_run=False
-        )
 
     outcome = create_issue(
         incident_id,

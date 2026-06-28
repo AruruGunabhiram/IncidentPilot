@@ -77,7 +77,7 @@ flowchart TD
     ORC --> SEQ
     SEQ --> MC
 
-    EVAL["evals/run_evals.py<br/>(drives the real routes, dry-run forced)"] --> API
+    EVAL["evals/run_evals.py<br/>(routes + direct investigate for temp reports,<br/>dry-run forced)"] --> API
 ```
 
 ## FastAPI control plane
@@ -282,11 +282,15 @@ grounded, so at worst it triggers a deterministic fallback.
 
 ## Evaluation suite
 
-`evals/run_evals.py` drives the **real** application flow (FastAPI routes + deterministic
-services) for each case declared in `evals/evaluation_cases.yaml`:
+`evals/run_evals.py` drives the **real** application flow for each case declared in
+`evals/evaluation_cases.yaml`. It uses FastAPI routes for trigger, approval, and GitHub
+issue checks, and calls `investigation_service.investigate_incident(...)` directly with a
+throwaway reports directory so evals can verify persistence without modifying tracked
+`app/storage/reports/` artifacts:
 
 ```
-trigger -> investigate -> github/issue (before approval) -> approve -> github/issue (after)
+trigger route -> investigation service with temp reports -> github/issue (before approval)
+-> approve route -> github/issue (after approval)
 ```
 
 and computes six checks per case: `file_path_verified`, `line_evidence_present`,

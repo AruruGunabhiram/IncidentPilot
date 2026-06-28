@@ -1,10 +1,10 @@
 # IncidentPilot — Evaluation Results
 
-_Generated: 2026-06-28 07:35:55 UTC_
+_Generated: 2026-06-28 08:37:41 UTC_
 
 **Summary:** 5 cases run, 4 passed, 0 failed, 1 expected safe failure passed
 
-Each case is driven through the real app flow (`trigger -> investigate -> github/issue -> approve -> github/issue`). GitHub writes are forced to dry-run; no real issue is created. `✓` = check met its expectation for that case.
+Each case is driven through the real app flow (`trigger route -> investigation service with temp reports -> github/issue route -> approve route -> github/issue route`). GitHub writes are forced to dry-run; no real issue is created. `✓` = check met its expectation for that case.
 
 | case_id | status | file_path_verified | line_evidence_present | confidence_reasonable | no_secret_leak | safe_action_policy_passed | expected_blocking_behavior | confidence | notes |
 |---|---|---|---|---|---|---|---|---|---|

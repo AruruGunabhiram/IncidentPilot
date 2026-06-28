@@ -6,7 +6,9 @@ flow (FastAPI routes + deterministic services), not a mock pipeline. For each
 case declared in ``evals/evaluation_cases.yaml`` it drives::
 
     POST /incidents/trigger            -> register the demo incident
-    POST /incidents/{id}/investigate   -> grounded IncidentReport (real pipeline)
+    investigation_service.investigate_incident(...)
+                                       -> grounded IncidentReport written to a
+                                          throwaway reports dir
     POST /incidents/{id}/github/issue  -> attempt issue BEFORE approval (dry-run)
     POST /incidents/{id}/approve       -> record explicit human approval
     POST /incidents/{id}/github/issue  -> attempt issue AFTER approval (dry-run)
@@ -21,9 +23,11 @@ Design guarantees:
 * Deterministic and fully offline. No network call is ever made; GitHub issue
   creation is forced to dry-run AND the GitHub env is scrubbed, so no real issue
   can be created during evaluation.
-* Hermetic. Each case runs against a reset in-memory store and persists its
-  report to a throwaway temp directory, so the tracked reports under
-  ``app/storage/reports/`` are never modified.
+* Hermetic. Each case triggers, approves, and checks GitHub behavior through the
+  real FastAPI routes, but calls ``investigation_service.investigate_incident``
+  directly with a throwaway reports directory. This keeps tracked reports under
+  ``app/storage/reports/`` untouched while still exercising the real
+  investigation and persistence code.
 * Independent verification. ``file_path_verified`` / ``line_evidence_present``
   do NOT trust the report's own claims — every cited repo path is re-resolved
   through ``app.tools.path_guard`` and re-read through ``app.tools.repo_search``.
@@ -309,8 +313,9 @@ def run_case(case: dict) -> CaseResult:
         incident_id = trig.json()["incident_id"]
 
         # 2. Investigate via the real deterministic service, persisting the
-        #    redacted report to a THROWAWAY dir (keeps tracked reports clean while
-        #    still exercising the real persistence path).
+        #    redacted report to a THROWAWAY dir. This intentionally avoids the
+        #    HTTP investigate route so evals can validate persistence without
+        #    touching tracked app/storage/reports artifacts.
         report = investigation_service.investigate_incident(
             incident_id, persist=True, reports_dir=tmp_dir
         )
@@ -567,7 +572,8 @@ def render_markdown(results: list[CaseResult], summary: str) -> str:
     lines.append("")
     lines.append(
         "Each case is driven through the real app flow "
-        "(`trigger -> investigate -> github/issue -> approve -> github/issue`). "
+        "(`trigger route -> investigation service with temp reports -> "
+        "github/issue route -> approve route -> github/issue route`). "
         "GitHub writes are forced to dry-run; no real issue is created. "
         "`✓` = check met its expectation for that case."
     )

@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     github_token: str = ""
     github_owner: str = ""
     github_repo: str = ""
-    github_dry_run: bool = True
+    # Preserve the raw token so github_issue_service.resolve_dry_run can treat
+    # invalid values as dry-run instead of failing during settings parsing.
+    github_dry_run: str | bool = "true"
     gemini_api_key: str = ""
     # Optional agent layer. Default OFF: the deterministic investigation service
     # stays the source of truth and default behavior. When enabled, agent output

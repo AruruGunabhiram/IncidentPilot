@@ -1,16 +1,16 @@
 # Graph Report - IncidentPilot  (2026-06-28)
 
 ## Corpus Check
-- 76 files · ~42,716 words
+- 76 files · ~42,848 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 923 nodes · 2128 edges · 51 communities (44 shown, 7 thin omitted)
+- 925 nodes · 2133 edges · 51 communities (45 shown, 6 thin omitted)
 - Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 142 edges (avg confidence: 0.51)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3d99f884`
+- Built from commit: `c9d5dfd9`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -90,7 +90,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (51 total, 7 thin omitted)
+## Communities (51 total, 6 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.11
@@ -101,8 +101,8 @@ Cohesion: 0.15
 Nodes (19): build_summary(), main(), Return the ``(json_path, markdown_path)`` for ``incident_id``., Return a clean, redacted console summary of the investigation., Run the demo investigation. Return ``0`` on success, non-zero on failure.      O, _report_paths(), run_demo(), _env_without_secrets_or_network() (+11 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.23
-Nodes (12): create_github_issue(), GitHub issue route — approval- and safety-gated, dry-run by default., Preview or create the GitHub issue for an approved, grounded report., get_settings(), Settings, settings_dependency(), BaseSettings, GitHubIssueResult (+4 more)
+Cohesion: 0.28
+Nodes (10): create_github_issue(), GitHub issue route — approval- and safety-gated, dry-run by default., Preview or create the GitHub issue for an approved, grounded report., get_settings(), Settings, settings_dependency(), BaseSettings, GitHubIssueResult (+2 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.14
@@ -117,16 +117,16 @@ Cohesion: 0.10
 Nodes (30): A secret-bearing CI log is redacted while evidence is still extracted.      The, test_phase3_redacts_secrets_from_ci_log(), test_clean_text_returns_same_text_and_zero_redactions(), test_findings_do_not_leak_full_secret(), test_redaction_is_idempotent(), test_redacts_api_key_key_value(), test_redacts_bearer_token(), test_redacts_database_url() (+22 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.05
-Nodes (85): build_summary(), CaseResult, CheckResult, _compute_checks(), EvalRun, extract_secret_literals(), _hard_fail(), _intake_repo_root() (+77 more)
+Cohesion: 0.09
+Nodes (57): Path, The same guard protects the real demo repo root used by the pipeline., An allowed root directory with one nested file., root(), test_allows_nested_valid_file(), test_allows_normal_file_inside_root(), test_blocks_absolute_path_outside_root(), test_blocks_deep_parent_traversal() (+49 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.08
 Nodes (44): _build_minimal_report(), Phase 3 deterministic toolchain integration check.  Proves the Phase 3 tools wor, End-to-end deterministic run over the broken_api_route fixtures., Assemble a minimal, fully grounded report dict for the serializer.      Every ev, test_phase3_toolchain_end_to_end(), test_ensure_report_safe_redacts_text(), test_markdown_includes_summary_evidence_confidence(), test_missing_optional_fields_do_not_crash() (+36 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.13
-Nodes (39): EvidenceItem, A single grounded piece of evidence returned by a deterministic tool., IncidentIntake, Normalized representation of an incoming incident to investigate., _api_evidence(), _build_code_finding(), _build_fix_plan(), _build_log_finding() (+31 more)
+Cohesion: 0.15
+Nodes (32): EvidenceItem, A single grounded piece of evidence returned by a deterministic tool., _api_evidence(), _build_code_finding(), _build_fix_plan(), _build_log_finding(), _build_root_cause(), _build_safety_review() (+24 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.11
@@ -137,8 +137,8 @@ Cohesion: 0.10
 Nodes (19): Tests for the deterministic investigation service (Phase 5).  These exercise :fu, The scenario name alone is enough; it is auto-registered., Secrets are redacted everywhere, yet the report is still persisted., An ungrounded failure must escalate, not fabricate a confident diagnosis., If the repo cannot be read, no code evidence may be invented., The on-disk JSON re-validates straight through the IncidentReport schema., The Markdown report is written and never leaks a raw secret., A crafted scenario id cannot escape demo/incidents/. (+11 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.09
-Nodes (29): _coerce_report(), ensure_storage_dirs(), get_approval(), list_reports(), load_report_json(), In-memory incident store for the IncidentPilot control plane.  Phase 4 keeps all, Store a human approval decision, keyed by its action., Return the stored approval for ``incident_id``/``action`` if present. (+21 more)
+Cohesion: 0.08
+Nodes (33): _assign_incident_id(), _coerce_report(), ensure_storage_dirs(), get_approval(), get_incident(), list_reports(), load_report_json(), In-memory incident store for the IncidentPilot control plane.  Phase 4 keeps all (+25 more)
 
 ### Community 20 - "Community 20"
 Cohesion: 0.16
@@ -149,8 +149,8 @@ Cohesion: 0.26
 Nodes (8): Phase 2 demo fixture sanity tests.  These verify the demo incident fixtures exis, _read(), test_ambiguous_error_report_is_low_confidence(), test_broken_api_route_ci_log_has_attribute_error(), test_broken_api_route_report_mentions_root_cause_and_file(), test_json_files_parse(), test_secret_in_logs_ci_log_has_fake_secrets(), test_secret_in_logs_report_has_no_raw_secrets()
 
 ### Community 22 - "Community 22"
-Cohesion: 0.15
-Nodes (14): ApprovalAction, ApprovalStatus, ApprovalRecord, A stored, auditable approval decision for one incident + action.      ``status``, Keep ``status`` and the legacy ``approved`` boolean consistent.          ``appro, ApprovalService, Record a ``rejected`` decision for ``(incident_id, action)``., Return the stored approval record for the action, or ``None``. (+6 more)
+Cohesion: 0.12
+Nodes (19): ApprovalAction, ApprovalStatus, ApprovalRecord, A stored, auditable approval decision for one incident + action.      ``status``, Keep ``status`` and the legacy ``approved`` boolean consistent.          ``appro, ApprovalService, Human approval gate (Phase 8).  Single, service-layer source of truth for whethe, Record a ``rejected`` decision for ``(incident_id, action)``. (+11 more)
 
 ### Community 23 - "Community 23"
 Cohesion: 0.33
@@ -173,8 +173,8 @@ Cohesion: 0.11
 Nodes (22): AgentOutcome, load_prompt(), parse_agent_json(), Result of a single agent step — thin, inspectable, and not yet trusted.      ``s, Return the text of ``prompts/{name}.md``.      Raises ``FileNotFoundError`` if t, Strictly parse an agent's raw output into a JSON object.      Returns ``None`` f, Code Context agent: restate the deterministic, verified code finding.  Runs afte, FixPlannerAgent (+14 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.10
-Nodes (27): approve_incident(), investigate_incident(), Incident control-plane routes: trigger, investigate, approve.  Handlers stay thi, Load the scenario's intake fixture and register a new incident., Run the deterministic investigation and return the grounded report., Record a human approval decision for an action (empty body = approve).      The, trigger_incident(), BaseModel (+19 more)
+Cohesion: 0.11
+Nodes (25): approve_incident(), investigate_incident(), Incident control-plane routes: trigger, investigate, approve.  Handlers stay thi, Load the scenario's intake fixture and register a new incident., Run the deterministic investigation and return the grounded report., Record a human approval decision for an action (empty body = approve).      The, trigger_incident(), BaseModel (+17 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.15
@@ -185,8 +185,8 @@ Cohesion: 0.17
 Nodes (9): EvidenceIndex, _norm_path(), Shared, dependency-light helpers for the optional agent layer.  The agent layer, True if every id is one the tools actually produced (empty is fine)., True if ``path`` names a file the tools actually verified.          Tolerates a, The closed set of facts an agent is allowed to cite.      Built only from the de, Optional, grounded agent layer for IncidentPilot.  This package adds an *optiona, AgentInvestigationResult (+1 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.06
-Nodes (59): The deterministic safety gate's structured pass/fail invariants.      Every fiel, SafetyChecks, The incident exists but has not been investigated yet., The safety review does not permit the requested external action., SafetyBlocked, assert_github_issue_allowed(), assert_report_safe_for_issue(), checks_blocked_reasons() (+51 more)
+Cohesion: 0.07
+Nodes (56): The deterministic safety gate's structured pass/fail invariants.      Every fiel, SafetyChecks, assert_github_issue_allowed(), assert_report_safe_for_issue(), checks_blocked_reasons(), _default_summary(), evaluate_safety(), github_issue_block_reasons() (+48 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.10
@@ -209,16 +209,16 @@ Cohesion: 0.14
 Nodes (14): Response, If GitHub's error body echoed the token, the client must scrub it., test_client_create_issue_http_error_is_controlled(), test_client_create_issue_success(), test_client_unconfigured_raises_without_network(), test_token_never_appears_in_client_repr(), test_token_scrubbed_even_when_github_echoes_it(), CreatedIssue (+6 more)
 
 ### Community 39 - "Community 39"
-Cohesion: 0.29
-Nodes (7): investigate_incident(), _load_intake(), _persist_report(), Run the deterministic investigation for an incident or demo scenario.      ``sce, Resolve an incident id or demo scenario name to an ``IncidentState``.      Deter, Write the redacted report to disk as JSON + Markdown; return both paths.      De, _resolve_incident_state()
+Cohesion: 0.50
+Nodes (4): investigate_incident(), _persist_report(), Run the deterministic investigation for an incident or demo scenario.      ``sce, Write the redacted report to disk as JSON + Markdown; return both paths.      De
 
 ### Community 40 - "Community 40"
 Cohesion: 0.33
 Nodes (5): handle_incident_error(), IncidentPilot FastAPI application (Phase 4 control plane).  Registers the determ, Map control-plane domain errors to their HTTP status + detail.      Includes the, JSONResponse, Request
 
 ### Community 41 - "Community 41"
-Cohesion: 0.16
-Nodes (19): Human approval gate (Phase 8).  Single, service-layer source of truth for whethe, ApprovalRejected, ApprovalRequired, IncidentError, IncidentNotFound, InvalidAction, Domain errors for the incident control plane.  Services raise these plain except, Base class for control-plane errors. Carries an HTTP status + detail.      ``rea (+11 more)
+Cohesion: 0.14
+Nodes (22): Report retrieval route., Return the stored, grounded incident report (after /investigate)., read_incident_report(), ApprovalRequired, IncidentError, IncidentNotFound, Domain errors for the incident control plane.  Services raise these plain except, Base class for control-plane errors. Carries an HTTP status + detail.      ``rea (+14 more)
 
 ### Community 42 - "Community 42"
 Cohesion: 0.12
@@ -237,30 +237,34 @@ Cohesion: 0.20
 Nodes (9): BaseTransport, GitHubIssueError, GitHubIssueOutcome, A real GitHub issue write was attempted and failed (controlled, no secret)., Result of an issue-creation attempt (preview in dry-run, created in real)., A fake client that records the call and returns a successful issue., _RecordingClient, GitHubClientError (+1 more)
 
 ### Community 46 - "Community 46"
-Cohesion: 0.25
-Nodes (8): _assign_incident_id(), get_incident(), IncidentState, Everything the control plane tracks for a single incident., Return a stable id for ``scenario`` (known map first, else sequential)., Create (or refresh) the incident for ``scenario`` and return its state.      Tri, Return the incident state for ``incident_id``, or ``None`` if unknown., register_incident()
+Cohesion: 0.13
+Nodes (18): datetime, IncidentIntake, Incident intake schemas., Normalized representation of an incoming incident to investigate., _grounded_frames(), _load_intake(), _no_evidence_report(), Resolve an incident id or demo scenario name to an ``IncidentState``.      Deter (+10 more)
 
 ### Community 47 - "Community 47"
 Cohesion: 0.29
 Nodes (7): Exception, InvalidIncidentIdError, Base class for durable report-storage errors., Raised when an ``incident_id`` is unsafe to use as a filename., Return ``incident_id`` unchanged if it is a safe single path segment.      Treat, StorageError, _validate_incident_id()
 
 ### Community 48 - "Community 48"
-Cohesion: 0.40
-Nodes (5): Report retrieval route., Return the stored, grounded incident report (after /investigate)., read_incident_report(), get_report(), Return the stored report for ``incident_id``, or ``None`` if not ready.
+Cohesion: 0.12
+Nodes (28): build_summary(), CaseResult, CheckResult, _compute_checks(), EvalRun, extract_secret_literals(), _hard_fail(), _intake_repo_root() (+20 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.40
 Nodes (4): _dry_run_message(), GitHubSettings, Resolved GitHub configuration for one issue-creation attempt., True only when token, owner, and repo are all present.
 
+### Community 50 - "Community 50"
+Cohesion: 0.50
+Nodes (4): Invalid env dry-run values must not 500 or enable a real write., Route can return a real-created issue shape without real GitHub access., test_github_issue_route_real_create_uses_mocked_client(), test_invalid_github_dry_run_env_fails_safe_to_preview()
+
 ## Knowledge Gaps
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `IncidentReport` connect `Community 29` to `Community 0`, `Community 1`, `Community 6`, `Community 16`, `Community 18`, `Community 19`, `Community 26`, `Community 27`, `Community 28`, `Community 30`, `Community 31`, `Community 32`, `Community 33`, `Community 37`, `Community 39`, `Community 43`, `Community 45`, `Community 46`, `Community 47`, `Community 48`, `Community 49`?**
-  _High betweenness centrality (0.248) - this node is a cross-community bridge._
-- **Why does `redact_secrets()` connect `Community 16` to `Community 1`, `Community 33`, `Community 3`, `Community 5`, `Community 38`, `Community 7`, `Community 19`, `Community 26`?**
+- **Why does `IncidentReport` connect `Community 29` to `Community 0`, `Community 1`, `Community 16`, `Community 18`, `Community 19`, `Community 26`, `Community 27`, `Community 28`, `Community 30`, `Community 31`, `Community 32`, `Community 33`, `Community 37`, `Community 39`, `Community 41`, `Community 43`, `Community 45`, `Community 46`, `Community 47`, `Community 48`, `Community 49`?**
+  _High betweenness centrality (0.247) - this node is a cross-community bridge._
+- **Why does `redact_secrets()` connect `Community 16` to `Community 1`, `Community 33`, `Community 3`, `Community 5`, `Community 38`, `Community 7`, `Community 46`, `Community 19`, `Community 26`?**
   _High betweenness centrality (0.082) - this node is a cross-community bridge._
 - **Why does `read_ci_log()` connect `Community 3` to `Community 16`, `Community 5`, `Community 6`, `Community 7`?**
   _High betweenness centrality (0.046) - this node is a cross-community bridge._

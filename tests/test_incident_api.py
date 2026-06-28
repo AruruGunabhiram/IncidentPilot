@@ -29,7 +29,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.dependencies import settings_dependency
 from app.main import app
 from app.tools.github_client import CreatedIssue
@@ -257,6 +257,44 @@ def test_github_issue_dry_run_preview(client: TestClient) -> None:
     blob = json.dumps(issue)
     for secret in RAW_FAKE_SECRETS:
         assert secret not in blob
+
+
+def test_invalid_github_dry_run_env_fails_safe_to_preview(monkeypatch) -> None:
+    """Invalid env dry-run values must not 500 or enable a real write."""
+
+    class ExplodingGitHubClient:
+        def __init__(self, *args, **kwargs) -> None:
+            raise AssertionError("GitHub client must not be constructed in dry-run")
+
+    monkeypatch.setenv("GITHUB_TOKEN", "ghp_routeTestToken_DO_NOT_LEAK_0001")
+    monkeypatch.setenv("GITHUB_OWNER", "demo-owner")
+    monkeypatch.setenv("GITHUB_REPO", "demo-repo")
+    monkeypatch.setenv("GITHUB_DRY_RUN", "banana")
+    get_settings.cache_clear()
+
+    incident_store.reset_store()
+    monkeypatch.setattr(
+        "app.services.github_issue_service.GitHubClient", ExplodingGitHubClient
+    )
+    try:
+        local = TestClient(app, raise_server_exceptions=False)
+        local.post("/incidents/trigger", json={"scenario": "broken_api_route"})
+        local.post("/incidents/inc_001/investigate")
+        local.post("/incidents/inc_001/approve")
+
+        response = local.post(
+            "/incidents/inc_001/github/issue", json={"dry_run": False}
+        )
+    finally:
+        get_settings.cache_clear()
+        incident_store.reset_store()
+
+    assert response.status_code == 200
+    issue = response.json()
+    assert issue["created"] is False
+    assert issue["dry_run"] is True
+    assert issue["issue_url"] is None
+    assert issue["issue_number"] is None
 
 
 def test_github_issue_route_real_create_uses_mocked_client(monkeypatch) -> None:
