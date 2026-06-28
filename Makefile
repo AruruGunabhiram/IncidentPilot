@@ -1,4 +1,4 @@
-.PHONY: setup dev test demo clean
+.PHONY: setup dev test demo eval clean
 
 PYTHON ?= python3
 VENV ?= .venv
@@ -18,6 +18,9 @@ test:
 
 demo:
 	$(PYTHON) scripts/run_demo.py
+
+eval:
+	$(PYTHON) evals/run_evals.py
 
 clean:
 	find . -type d -name "__pycache__" -prune -exec rm -rf {} +
