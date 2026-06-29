@@ -1,13 +1,12 @@
 # Screenshots
 
 This folder holds screenshots used by the README, the demo script, and the hackathon
-submission. **No real screenshots are committed yet** — `.gitkeep` keeps the folder under
-version control until they are captured.
+submission. The committed PNGs below were captured from the local demo flow and live API
+responses. Refresh them whenever endpoint output, safety behavior, or eval results change.
 
-Capture the seven shots below and save each with the suggested filename. Then reference
-them from the README/demo as needed.
+Keep the seven shots below with the same filenames so README/demo links remain stable.
 
-## How to produce the screens
+## How to refresh the screens
 
 ```bash
 make dev      # serve the API at http://127.0.0.1:8000 (Swagger UI at /docs)
@@ -15,7 +14,7 @@ make dev      # serve the API at http://127.0.0.1:8000 (Swagger UI at /docs)
 make eval     # regenerates evals/results/evaluation_results.md
 ```
 
-## Shots to capture
+## Committed shots
 
 1. **`01-swagger-endpoints.png` — Swagger endpoint list.**
    Open `http://127.0.0.1:8000/docs`. Show all routes: `/health`,

@@ -12,8 +12,9 @@ make demo           # warms the deterministic pipeline and writes inc_001 report
 ```
 
 Have two things open: a terminal, and the Swagger UI at
-`http://127.0.0.1:8000/docs` (start the server with `make dev`). Capture screenshots as
-you go (see `docs/screenshots/README.md` for the exact shots).
+`http://127.0.0.1:8000/docs` (start the server with `make dev`). Committed example
+screenshots live in `docs/screenshots/`; refresh them from this script if the demo output
+changes.
 
 ---
 

@@ -194,7 +194,8 @@ dereference — the happy path), `secret_in_logs` (redaction + safety block),
 must not hallucinate), `path_traversal`, and `low_confidence_report`.
 
 A timed 3-minute walkthrough is in **[docs/demo_script.md](docs/demo_script.md)**, and a
-rendered sample report in **[docs/sample_report.md](docs/sample_report.md)**.
+rendered sample report in **[docs/sample_report.md](docs/sample_report.md)**. Demo
+screenshots are committed in **[docs/screenshots](docs/screenshots/README.md)**.
 
 ## How to run evals
 
